@@ -329,4 +329,4 @@ with open(opf_filename,"w") as fp:
             ))
 
 # Now run kindlegen on the result:
-call(['/home/mark/kindlegen/kindlegen','-o',mobi_filename,opf_filename])
+call(['kindlegen','-o',mobi_filename,opf_filename])
