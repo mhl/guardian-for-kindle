@@ -11,6 +11,13 @@ from lxml import etree
 import time
 from StringIO import StringIO
 
+# Things To Do:
+#   Divide the contents page into Main Section, G2, etc.
+#   Indicate the sections (e.g. politics, editorial, etc.)
+#   Generate a nice cover image
+#   Refactor to remove redundancy, move arbitrary strings to the top
+#   Generate XML / HTML with lxml instead
+
 api_key = None
 
 with open(os.path.join(os.environ['HOME'],
@@ -260,7 +267,6 @@ files.append(nav_contents_filename)
 
 cover_image_filename = "cover-image.gif"
 
-# FIXME: Create a cover image here:
 check_call(["cp",os.path.join("..",cover_image_filename),"."])
 
 files.append(cover_image_filename)
