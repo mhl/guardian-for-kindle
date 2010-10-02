@@ -110,8 +110,6 @@ today_filename = 'today.html'
 with open(today_filename,"w") as fp:
     fp.write(today_page)
 
-paper_contents = []
-
 html_parser = etree.HTMLParser()
 
 filename_to_headline = {}
