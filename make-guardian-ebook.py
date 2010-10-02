@@ -26,6 +26,17 @@ from lxml import etree
 import time
 from StringIO import StringIO
 
+# This script has several dependencies:
+#
+#  1. sudo apt-get install python2.6-minimal python-gd python-lxml
+#
+# Also, if the kindlegen binary is on your PATH, a version of the book
+# for kindle will be generated.  (Otherwise you just have the OPF
+# version.)  kindlegen is available from:
+#   http://www.amazon.com/gp/feature.html?ie=UTF8&docId=1000234621
+#
+# ========================================================================
+
 # Things To Do:
 #   Divide the contents page into Main Section, G2, etc.
 #   Indicate the sections (e.g. politics, editorial, etc.)
