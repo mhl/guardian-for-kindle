@@ -328,5 +328,8 @@ with open(opf_filename,"w") as fp:
             first_page_title = filename_to_headline['contents.html']
             ))
 
-# Now run kindlegen on the result:
-call(['kindlegen','-o',mobi_filename,opf_filename])
+if 0 == call(['kindlegen']):
+    # The kindlegen is available:
+    call(['kindlegen','-o',mobi_filename,opf_filename])
+else:
+    print "Warning: kindlegen was not on your path; not generating .mobi version"
