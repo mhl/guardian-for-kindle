@@ -194,16 +194,14 @@ with open(today_filename) as fp:
                 if standfirst:
                     page_fp.write('<p><em>{sf}</em></p>'.format(sf=standfirst.encode('UTF-8')))
 
-                thumbnail_basename = None
                 if thumbnail:
                     extension = re.sub('^.*\.','',thumbnail)
-                    thumbnail_basename = "{0:03d}-thumb.{1:}".format(page_number,extension)
-                    thumbnail_filename = thumbnail_basename
+                    thumbnail_filename = "{0:03d}-thumb.{1:}".format(page_number,extension)
                     if not os.path.exists(thumbnail_filename):
                         with open(thumbnail_filename,"w") as fp:
                             fp.write(urlopen(thumbnail).read())
                     files.append(thumbnail_filename)
-                    page_fp.write('<img src="{iu}"></img>'.format(iu=thumbnail_basename))
+                    page_fp.write('<img src="{iu}"></img>'.format(iu=thumbnail_filename))
                 if body:
                     print "Going to parse: "+str(body.encode('UTF-8'))
                     body_element_tree = etree.parse(StringIO(body),html_parser)
