@@ -113,18 +113,18 @@ with open(today_filename,"w") as fp:
 html_parser = etree.HTMLParser()
 
 filename_to_headline = {}
+filename_to_paper_part = {}
 
 files = []
 
 with open(today_filename) as fp:
     element_tree = etree.parse(today_filename,html_parser)
-    timeline_element = element_tree.find('//ul[@class="timeline"]')
     page_number = 1
-    for li in timeline_element:
-        section_name = li.find('h2').find('a').text
-        print "Got section_name: "+section_name
-        section_list = li.find('ul')
-        for li in section_list:
+    for li in element_tree.find('//ul[@class="timeline"]'):
+        paper_part = li.find('h2').find('a').text
+        print "Got paper_part: "+paper_part
+
+        for li in li.find('ul'):
             link = li.find('a')
             href = link.get('href')
             m = re.search('http://www\.guardian\.co\.uk/(.*)$',href)
@@ -135,6 +135,12 @@ with open(today_filename) as fp:
             element_tree = url_to_element_tree(item_url)
             if not element_tree:
                 continue
+
+            # FIXME: check the response element here for "ok"
+
+            content = element_tree.find('//content')
+            section_name = content.attrib['section-name']
+            print "Got section_name: "+section_name
 
             standfirst = None
             trail_text = None
@@ -184,6 +190,7 @@ with open(today_filename) as fp:
                 page_fp.write('<h1>{h}</h1>\n'.format(h=headline.encode('UTF-8')))
                 if byline:
                     page_fp.write('<h4>By {b}</h4>'.format(b=byline.encode('UTF-8')))
+                page_fp.write('<p>{p}: {s}</p>'.format(p=paper_part,s=section_name))
                 if standfirst:
                     page_fp.write('<p><em>{sf}</em></p>'.format(sf=standfirst.encode('UTF-8')))
 
@@ -218,6 +225,7 @@ with open(today_filename) as fp:
                     page_fp.write('<p>Content from the <a href="{u}">Guardian Open Platform</a></p>\n'.format(u="http://www.guardian.co.uk/open-platform"))
                 page_fp.write('\n</body></html>')
             filename_to_headline[page_filename] = headline
+            filename_to_paper_part[page_filename] = paper_part
 
             page_number += 1
             files.append(page_filename)
@@ -250,17 +258,24 @@ with open(contents_filename,"w") as fp:
 <title>Table of Contents</title>
 </head>
 <body>
-<h1>Contents</h1>
-<ol>
-''')
+<h1>Contents</h1>\n''')
+
+    current_part = None
 
     for f in files:
         if re.search('\.html$',f):
+            part_for_this_file = filename_to_paper_part[f]
+            if current_part != part_for_this_file:
+                if current_part:
+                    fp.write('  </ul>\n')
+                fp.write('<h3>{p}</h3>\n'.format(p=part_for_this_file))
+                fp.write('  <ul>\n')
+            current_part = part_for_this_file
             fp.write('    <li><a href="{f}">{h}</a></li>\n'.format(f=f,h=filename_to_headline[f].encode('UTF-8')))
             spine += '    <itemref idref="{item_id}"/>\n'.format(item_id=re.sub('\..*$','',f))
 
     fp.write('''
-</ol>
+  </ul>
 </body>
 </html>''')
 
