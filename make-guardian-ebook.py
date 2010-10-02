@@ -50,6 +50,31 @@ with open(os.path.join(os.environ['HOME'],
                        '.guardian-open-platform-key')) as fp:
     api_key = fp.read().strip()
 
+def ordinal_suffix(n):
+    if n == 1:
+        return "st"
+    elif n == 2:
+        return "nd"
+    else:
+        return "th"
+
+today_date = date.today()
+today = str(today_date)
+day = today_date.day
+today_long = today_date.strftime("%A the {0}{1} of %B, %Y").format(day,ordinal_suffix(day))
+check_call(['mkdir','-p',today])
+os.chdir(today)
+
+sunday = (date.today().isoweekday() == 7)
+
+# Set up various variable that we need below:
+
+paper = "The Observer" if sunday else "The Guardian"
+book_id = "Guardian_"+today
+book_title = paper + " on "+today_long
+book_title_short = paper + " on " + today
+book_basename = "guardian-"+today
+
 results_page_to_get = 1
 total_results_pages = None
 
@@ -75,10 +100,6 @@ def url_to_element_tree(url):
 
 def url_to_root_element(url):
     return url_to_element_tree(url).getroot()
-
-today = str(date.today())
-check_call(['mkdir','-p',today])
-os.chdir(today)
 
 today_page_url = "http://www.guardian.co.uk/theguardian/all"
 
@@ -159,10 +180,10 @@ with open(today_filename) as fp:
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>The Guardian on {today}: [{page}] {headline}</title>
+<title>{paper} on {today}: [{page}] {headline}</title>
 </head>
 <body>
-'''.format(today=today,page=page_number,headline=headline.encode('UTF-8')))
+'''.format(paper=paper,today=today,page=page_number,headline=headline.encode('UTF-8')))
 
                 page_fp.write('<h1>{h}</h1>\n'.format(h=headline.encode('UTF-8')))
                 if byline:
@@ -219,8 +240,6 @@ def extension_to_media_type(extension):
 
 # Now write the OPF:
 
-book_id = "Guardian_"+today
-
 contents_filename = "contents.html"
 nav_contents_filename = "nav-contents.ncx"
 
@@ -271,7 +290,7 @@ with open(nav_contents_filename,"w") as fp:
 <docTitle><text>{title}</text></docTitle>
 <docAuthor><text>{author}</text></docAuthor>
   <navMap>
-'''.format(book_id=book_id,title="The Guardian on "+today,author="The Guardian"))
+'''.format(book_id=book_id,title=book_title_short,author=paper))
     nav_contents_files = [ contents_filename ] + [ x for x in files if re.search('\.html$',x) ]
     i = 1
     for f in nav_contents_files:
@@ -307,7 +326,6 @@ for f in files:
         media_type=extension_to_media_type(extension),
         filename=f)
 
-book_basename = "guardian-"+today
 opf_filename = book_basename+".opf"
 mobi_filename = book_basename+".mobi"
 
@@ -340,12 +358,12 @@ with open(opf_filename,"w") as fp:
 
 </package>
 '''.format( book_id = book_id,
-            book_title = "The Guardian on "+today,
+            book_title = book_title_short,
             cover_id = "cover-image",
-            creator = "The Guardian",
-            publisher = "The Guardian",
+            creator = paper,
+            publisher = paper,
             publication_date = today,
-            description = "An unofficial ebook edition of the Guardian on "+today,
+            description = "An unofficial ebook edition of {0} on {1}".format(paper,today_long),
             all_files = manifest,
             spine = spine,
             contents_filename = contents_filename,
