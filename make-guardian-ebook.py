@@ -93,6 +93,7 @@ def url_to_element_tree(url):
             text = urlopen(url).read()
         except:
             return None
+        # Sleep to avoid making API requests faster than is allowed:
         time.sleep(0.6)
         with open(filename,"w") as fp:
             fp.write(text)
