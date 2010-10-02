@@ -190,7 +190,7 @@ with open(today_filename) as fp:
                 page_fp.write('<h1>{h}</h1>\n'.format(h=headline.encode('UTF-8')))
                 if byline:
                     page_fp.write('<h4>By {b}</h4>'.format(b=byline.encode('UTF-8')))
-                page_fp.write('<p>{p}: {s}</p>'.format(p=paper_part,s=section_name))
+                page_fp.write('<p>[{p}: {s}]</p>'.format(p=paper_part,s=section_name))
                 if standfirst:
                     page_fp.write('<p><em>{sf}</em></p>'.format(sf=standfirst.encode('UTF-8')))
 
