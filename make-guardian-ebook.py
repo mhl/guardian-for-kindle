@@ -119,7 +119,6 @@ files = []
 with open(today_filename) as fp:
     element_tree = etree.parse(today_filename,html_parser)
     timeline_element = element_tree.find('//ul[@class="timeline"]')
-    # print "Got timeline_element: "+str(timeline_element)
     page_number = 1
     for li in timeline_element:
         section_name = li.find('h2').find('a').text
@@ -128,7 +127,6 @@ with open(today_filename) as fp:
         for li in section_list:
             link = li.find('a')
             href = link.get('href')
-            print "  Got href: "+href
             m = re.search('http://www\.guardian\.co\.uk/(.*)$',href)
             item_id = m.group(1)
             print "======================================="
@@ -152,7 +150,6 @@ with open(today_filename) as fp:
                 name = field.get('name')
                 if name == 'standfirst':
                     standfirst = field.text
-                    print "====== got standfirst: "+standfirst
                 elif name == 'trail-text':
                     trail_text = field.text
                 elif name == 'byline':
