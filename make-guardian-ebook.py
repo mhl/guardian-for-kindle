@@ -75,9 +75,6 @@ book_title = paper + " on "+today_long
 book_title_short = paper + " on " + today
 book_basename = "guardian-"+today
 
-results_page_to_get = 1
-total_results_pages = None
-
 def make_content_url(date, page ):
     return 'http://content.guardianapis.com/search?from-date={d}&to-date={d}&page={p}&page-size=20&order-by=newest&format=xml&show-fields=all&show-tags=all&show-factboxes=all&show-refinements=all&api-key={k}'.format( d=str(date), p=page, k=api_key)
 
