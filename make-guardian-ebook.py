@@ -88,7 +88,6 @@ def url_to_element_tree(url):
     h = sha1(url.encode('UTF-8')).hexdigest()
     filename = h+".xml"
     if not os.path.exists(filename):
-        print "Going to fetch the URL: "+url
         try:
             text = urlopen(url).read()
         except:
@@ -122,15 +121,14 @@ with open(today_filename) as fp:
     page_number = 1
     for li in element_tree.find('//ul[@class="timeline"]'):
         paper_part = li.find('h2').find('a').text
-        print "Got paper_part: "+paper_part
+        print "["+paper_part+"]"
 
         for li in li.find('ul'):
             link = li.find('a')
             href = link.get('href')
             m = re.search('http://www\.guardian\.co\.uk/(.*)$',href)
             item_id = m.group(1)
-            print "======================================="
-            print "  Got id: "+item_id
+            print "  "+item_id
             item_url = make_item_url(item_id)
             element_tree = url_to_element_tree(item_url)
             if not element_tree:
@@ -140,7 +138,6 @@ with open(today_filename) as fp:
 
             content = element_tree.find('//content')
             section_name = content.attrib['section-name']
-            print "Got section_name: "+section_name
 
             standfirst = None
             trail_text = None
@@ -151,7 +148,6 @@ with open(today_filename) as fp:
             short_url = None
             publication = None
 
-            print "Got element_tree:\n" + etree.tostring(element_tree, pretty_print=True)
             for field in element_tree.find('//fields'):
                 name = field.get('name')
                 if name == 'standfirst':
@@ -175,7 +171,6 @@ with open(today_filename) as fp:
                 continue
 
             page_filename = "{0:03d}.html".format(page_number)
-            print "Will print to: "+page_filename
 
             with open(page_filename,"w") as page_fp:
                 page_fp.write('''<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
@@ -203,13 +198,10 @@ with open(today_filename) as fp:
                     files.append(thumbnail_filename)
                     page_fp.write('<img src="{iu}"></img>'.format(iu=thumbnail_filename))
                 if body:
-                    print "Going to parse: "+str(body.encode('UTF-8'))
                     body_element_tree = etree.parse(StringIO(body),html_parser)
-                    print "Now body_element_tree is: "+etree.tostring(body_element_tree, pretty_print=True)
                     image_elements = body_element_tree.findall('//img')
                     for i, image_element in enumerate(image_elements):
                         ad_url = image_element.attrib['src']
-                        print "Using ad_url: "+str(ad_url)
                         ad_filename = '{0:03d}-ad-{1:02d}.gif'.format(page_number,i)
                         if not os.path.exists(ad_filename):
                             with open(ad_filename,'w') as fp:
