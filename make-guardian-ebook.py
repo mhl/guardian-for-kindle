@@ -266,7 +266,7 @@ with open(contents_filename,"w") as fp:
             if current_part != part_for_this_file:
                 if current_part:
                     fp.write('  </ul>\n')
-                fp.write('<h3>{p}</h3>\n'.format(p=part_for_this_file))
+                fp.write('<h4>{p}</h4>\n'.format(p=part_for_this_file))
                 fp.write('  <ul>\n')
             current_part = part_for_this_file
             fp.write('    <li><a href="{f}">{h}</a></li>\n'.format(f=f,h=filename_to_headline[f].encode('UTF-8')))
