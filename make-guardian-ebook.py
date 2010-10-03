@@ -202,7 +202,7 @@ with open(today_filename) as fp:
             trail_text = None
             byline = None
             body = None
-            headline = '[no headline found]'
+            headline = '[No headline found]'
             thumbnail = None
             short_url = None
             publication = None
