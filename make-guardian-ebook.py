@@ -255,7 +255,7 @@ with open(today_filename) as fp:
                         with open(thumbnail_filename,"w") as fp:
                             fp.write(urlopen(thumbnail).read())
                     files.append(thumbnail_filename)
-                    page_fp.write('<img src="{iu}"></img>'.format(iu=thumbnail_filename))
+                    page_fp.write('<p><img src="{iu}"></img></p>'.format(iu=thumbnail_filename))
                 if body:
                     body_element_tree = etree.parse(StringIO(body),html_parser)
                     image_elements = body_element_tree.findall('//img')
