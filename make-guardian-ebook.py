@@ -27,7 +27,11 @@ import time
 from StringIO import StringIO
 import gd
 
-# This script has several dependencies:
+# This script will create an opf version of The Guardian (or The
+# Observer on Sunday) suitable for turning into a .mobi file for
+# copying to your Kindle.
+
+# The script has several dependencies:
 #
 #  1. sudo apt-get install python2.6-minimal python-gd python-lxml imagemagick ttf-mscorefonts-installer
 #
