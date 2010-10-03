@@ -110,7 +110,7 @@ subtitle += "\nEmail: Mark Longair <mark-guardiankindle@longair.net>"
 
 new_cover_image.string_ttf(
     font_filename,
-    12,
+    14,
     0,
     (28,y),
     subtitle,
