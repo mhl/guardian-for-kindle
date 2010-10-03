@@ -29,7 +29,7 @@ import gd
 
 # This script has several dependencies:
 #
-#  1. sudo apt-get install python2.6-minimal python-gd python-lxml imagemagick
+#  1. sudo apt-get install python2.6-minimal python-gd python-lxml imagemagick ttf-mscorefonts-installer
 #
 # Also, if the kindlegen binary is on your PATH, a version of the book
 # for kindle will be generated.  (Otherwise you just have the OPF
@@ -85,7 +85,10 @@ cover_image_filename = cover_image_basename + ".gif"
 w = 600
 h = 800
 
-font_filename = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf"
+top_offset = 100
+
+# font_filename = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf"
+font_filename = "/usr/share/fonts/truetype/msttcorefonts/arial.ttf"
 
 new_cover_image = gd.image((w,h))
 white = new_cover_image.colorAllocate((255,255,255))
@@ -95,24 +98,23 @@ new_cover_image.fill((0,0),white)
 
 logo_filename = os.path.join(
     "..",
-    ("observer" if sunday else "guardian")+"-logo-580.png")
+    ("observer" if sunday else "guardian")+"-logo-500.png")
 
 logo_image = gd.image(logo_filename)
 logo_size = logo_image.size()
 
-logo_image.copyTo( new_cover_image, (10,10 ) )
+logo_image.copyTo( new_cover_image, ((600-logo_size[0])/2,top_offset) )
 
-y = logo_size[1] + 40
+y = top_offset + logo_size[1] + top_offset
 
-subtitle = today_long + "\n\nUnoffical Kindle version based on the Guardian\n"
-subtitle += "Open Platform by Mark Longair\n\n"
-subtitle += "Email: mark-guardiankindle@longair.net"
+subtitle = today_long + "\n\nUnoffical Kindle version based on the Guardian Open Platform"
+subtitle += "\nEmail: Mark Longair <mark-guardiankindle@longair.net>"
 
 new_cover_image.string_ttf(
     font_filename,
-    18,
+    12,
     0,
-    (10,y),
+    (28,y),
     subtitle,
     black)
 
