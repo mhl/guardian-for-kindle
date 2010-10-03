@@ -177,6 +177,16 @@ with open(today_filename) as fp:
             item_url = make_item_url(item_id)
             element_tree = url_to_element_tree(item_url)
             if not element_tree:
+                print "    Failed to fetch.  Skipping..."
+                continue
+
+            response_element = element_tree.getroot()
+            if response_element.tag != 'response':
+                print "The root tag unexpectedly wasn't \"response\"."
+                sys.exit(1)
+            status = response_element.attrib['status']
+            if status != "ok":
+                print "    The response element's status was \"{0}\" (i.e. not \"ok\") Skipping...".format(status)
                 continue
 
             # FIXME: check the response element here for "ok"
@@ -213,6 +223,7 @@ with open(today_filename) as fp:
                     publication = field.text
 
             if body and re.search('Redistribution rights for this field are unavailable',body) and len(body) < 100:
+                print "    Warning: redistribution rights unavailable - skipping..."
                 continue
 
             page_filename = "{0:03d}.html".format(page_number)
