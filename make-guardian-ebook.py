@@ -227,8 +227,7 @@ with open(today_filename) as fp:
                     publication = field.text
 
             if body and re.search('Redistribution rights for this field are unavailable',body) and len(body) < 100:
-                print "    Warning: redistribution rights unavailable - skipping..."
-                continue
+                body = "<p><b>Redistribution rights for this article were not available.</b></p>"
 
             page_filename = "{0:03d}.html".format(page_number)
 
