@@ -39,11 +39,9 @@ import gd
 # ========================================================================
 
 # Things To Do:
-#   Divide the contents page into Main Section, G2, etc.
-#   Indicate the sections (e.g. politics, editorial, etc.)
-#   Generate a nice cover image
-#   Refactor to remove redundancy, move arbitrary strings to the top
-#   Generate XML / HTML with lxml instead
+#  - Generate XML / HTML with lxml (or some other less brittle way)
+#  - Indicate missing pages in the contents and (?) by including pages
+#    with no body
 
 api_key = None
 
