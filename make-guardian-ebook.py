@@ -145,6 +145,8 @@ def url_to_root_element(url):
     return url_to_element_tree(url).getroot()
 
 today_page_url = "http://www.guardian.co.uk/theguardian/all"
+if sunday:
+    today_page_url = "http://www.guardian.co.uk/theobserver/all"
 
 today_page = urlopen(today_page_url).read()
 today_filename = 'today.html'
