@@ -25,10 +25,11 @@ from urllib2 import urlopen
 from lxml import etree
 import time
 from StringIO import StringIO
+import gd
 
 # This script has several dependencies:
 #
-#  1. sudo apt-get install python2.6-minimal python-gd python-lxml
+#  1. sudo apt-get install python2.6-minimal python-gd python-lxml imagemagick
 #
 # Also, if the kindlegen binary is on your PATH, a version of the book
 # for kindle will be generated.  (Otherwise you just have the OPF
@@ -74,6 +75,51 @@ book_id = "Guardian_"+today
 book_title = paper + " on "+today_long
 book_title_short = paper + " on " + today
 book_basename = "guardian-"+today
+
+# Now draw the cover image:
+
+cover_image_basename = "cover-image"
+cover_image_filename_png = cover_image_basename + ".png"
+cover_image_filename = cover_image_basename + ".gif"
+
+w = 600
+h = 800
+
+font_filename = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf"
+
+new_cover_image = gd.image((w,h))
+white = new_cover_image.colorAllocate((255,255,255))
+black = new_cover_image.colorAllocate((0,0,0))
+
+new_cover_image.fill((0,0),white)
+
+logo_filename = os.path.join(
+    "..",
+    ("observer" if sunday else "guardian")+"-logo-580.png")
+
+logo_image = gd.image(logo_filename)
+logo_size = logo_image.size()
+
+logo_image.copyTo( new_cover_image, (10,10 ) )
+
+y = logo_size[1] + 40
+
+subtitle = today_long + "\n\nUnoffical Kindle version based on the Guardian\n"
+subtitle += "Open Platform by Mark Longair\n\n"
+subtitle += "Email: mark-guardiankindle@longair.net"
+
+new_cover_image.string_ttf(
+    font_filename,
+    18,
+    0,
+    (10,y),
+    subtitle,
+    black)
+
+with open(cover_image_filename_png,"w") as fp:
+    new_cover_image.writePng(fp)
+
+check_call(["convert",cover_image_filename_png,cover_image_filename])
 
 def make_content_url(date, page ):
     return 'http://content.guardianapis.com/search?from-date={d}&to-date={d}&page={p}&page-size=20&order-by=newest&format=xml&show-fields=all&show-tags=all&show-factboxes=all&show-refinements=all&api-key={k}'.format( d=str(date), p=page, k=api_key)
@@ -307,10 +353,6 @@ with open(nav_contents_filename,"w") as fp:
 
 files.append(contents_filename)
 files.append(nav_contents_filename)
-
-cover_image_filename = "cover-image.gif"
-
-check_call(["cp",os.path.join("..",cover_image_filename),"."])
 
 files.append(cover_image_filename)
 
