@@ -33,7 +33,9 @@ import gd
 
 # The script has several dependencies:
 #
-#  1. sudo apt-get install python2.6-minimal python-gd python-lxml imagemagick ttf-mscorefonts-installer
+#  sudo apt-get install python2.6-minimal python-gd python-lxml imagemagick ttf-mscorefonts-installer
+#
+# You need to put your API key in ~/.guardian-open-platform-key
 #
 # Also, if the kindlegen binary is on your PATH, a version of the book
 # for kindle will be generated.  (Otherwise you just have the OPF
