@@ -423,7 +423,7 @@ with open(opf_filename,"w") as fp:
 
 with open("/dev/null","w") as null:
     if 0 == call(['kindlegen'],stdout=null):
-        # The kindlegen is available:
+        # The kindlegen binary is available:
         call(['kindlegen','-o',mobi_filename,opf_filename])
     else:
         print "Warning: kindlegen was not on your path; not generating .mobi version"
