@@ -125,9 +125,6 @@ with open(cover_image_filename_png,"w") as fp:
 
 check_call(["convert",cover_image_filename_png,cover_image_filename])
 
-def make_content_url(date, page ):
-    return 'http://content.guardianapis.com/search?from-date={d}&to-date={d}&page={p}&page-size=20&order-by=newest&format=xml&show-fields=all&show-tags=all&show-factboxes=all&show-refinements=all&api-key={k}'.format( d=str(date), p=page, k=api_key)
-
 def make_item_url(item_id):
     return 'http://content.guardianapis.com/{i}?format=xml&show-fields=all&show-editors-picks=true&show-most-viewed=true&api-key={k}'.format( i=item_id, k=api_key)
 
@@ -144,9 +141,6 @@ def url_to_element_tree(url):
         with open(filename,"w") as fp:
             fp.write(text)
     return etree.parse(filename)
-
-def url_to_root_element(url):
-    return url_to_element_tree(url).getroot()
 
 today_page_url = "http://www.guardian.co.uk/theguardian/all"
 if sunday:
