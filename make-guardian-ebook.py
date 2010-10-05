@@ -21,7 +21,7 @@ import re
 from datetime import date
 from subprocess import check_call, call
 from hashlib import sha1
-from urllib2 import urlopen
+from urllib2 import urlopen, HTTPError
 from lxml import etree
 import time
 from StringIO import StringIO
@@ -134,8 +134,14 @@ def url_to_element_tree(url):
     if not os.path.exists(filename):
         try:
             text = urlopen(url).read()
-        except:
-            return None
+        except HTTPError, e:
+            if e.code == 403:
+                raise Exception, "The API return 403: is your API key correct?"
+            # Otherwise it's probably a 404, an article that's now been removed:
+            elif e.code == 404:
+                return None
+            else:
+                raise Exception, "An unexpected HTTPError was returned: "+str(e)
         # Sleep to avoid making API requests faster than is allowed:
         time.sleep(0.6)
         with open(filename,"w") as fp:
