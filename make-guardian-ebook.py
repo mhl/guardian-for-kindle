@@ -426,7 +426,7 @@ with open(opf_filename,"w") as fp:
             spine = spine,
             contents_filename = contents_filename,
             first_page_filename = '001.html',
-            first_page_title = filename_to_headline['001.html']
+            first_page_title = filename_to_headline['001.html'].encode('UTF-8')
             ))
 
 with open("/dev/null","w") as null:
