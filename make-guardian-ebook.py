@@ -175,6 +175,17 @@ with open(today_filename) as fp:
         print "["+paper_part+"]"
 
         for li in li.find('ul'):
+
+            headline = '[No headline found]'
+            standfirst = None
+            trail_text = None
+            byline = None
+            body = None
+            thumbnail = None
+            short_url = None
+            publication = None
+            section_name = None
+
             link = li.find('a')
             href = link.get('href')
             m = re.search('http://www\.guardian\.co\.uk/(.*)$',href)
@@ -182,54 +193,52 @@ with open(today_filename) as fp:
             print "  "+item_id
             item_url = make_item_url(item_id)
             element_tree = url_to_element_tree(item_url)
-            if not element_tree:
-                print "    Failed to fetch.  Skipping..."
-                continue
+            if element_tree:
 
-            response_element = element_tree.getroot()
-            if response_element.tag != 'response':
-                print "The root tag unexpectedly wasn't \"response\"."
-                sys.exit(1)
-            status = response_element.attrib['status']
-            if status != "ok":
-                print "    The response element's status was \"{0}\" (i.e. not \"ok\") Skipping...".format(status)
-                continue
+                response_element = element_tree.getroot()
+                if response_element.tag != 'response':
+                    print "The root tag unexpectedly wasn't \"response\"."
+                    sys.exit(1)
+                status = response_element.attrib['status']
+                if status != "ok":
+                    print "    The response element's status was \"{0}\" (i.e. not \"ok\") Skipping...".format(status)
+                    continue
 
-            # FIXME: check the response element here for "ok"
+                content = element_tree.find('//content')
+                section_name = content.attrib['section-name']
 
-            content = element_tree.find('//content')
-            section_name = content.attrib['section-name']
+                for field in element_tree.find('//fields'):
+                    name = field.get('name')
+                    if name == 'standfirst':
+                        standfirst = field.text
+                    elif name == 'trail-text':
+                        trail_text = field.text
+                    elif name == 'byline':
+                        byline = field.text
+                    elif name == 'body':
+                        body = field.text
+                    elif name == 'headline':
+                        headline = field.text
+                    elif name == 'thumbnail':
+                        thumbnail = field.text
+                    elif name == 'short-url':
+                        short_url = field.text
+                    elif name == 'publication':
+                        publication = field.text
 
-            standfirst = None
-            trail_text = None
-            byline = None
-            body = None
-            headline = '[No headline found]'
-            thumbnail = None
-            short_url = None
-            publication = None
+                if body and re.search('Redistribution rights for this field are unavailable',body) and len(body) < 100:
+                    print "    Warning: no redistribution rights available for that article"
+                    body = "<p><b>Redistribution rights for this article were not available.</b></p>"
 
-            for field in element_tree.find('//fields'):
-                name = field.get('name')
-                if name == 'standfirst':
-                    standfirst = field.text
-                elif name == 'trail-text':
-                    trail_text = field.text
-                elif name == 'byline':
-                    byline = field.text
-                elif name == 'body':
-                    body = field.text
-                elif name == 'headline':
-                    headline = field.text
-                elif name == 'thumbnail':
-                    thumbnail = field.text
-                elif name == 'short-url':
-                    short_url = field.text
-                elif name == 'publication':
-                    publication = field.text
-
-            if body and re.search('Redistribution rights for this field are unavailable',body) and len(body) < 100:
-                body = "<p><b>Redistribution rights for this article were not available.</b></p>"
+            else:
+                # If url_to_element_tree returns None that means it's
+                # one of the inexplicable cases where the API returns
+                # a 404, but the article is on the website.  Could
+                # just scrape the article here, but for the moment
+                # just indicate what's happened:
+                print "    Warning: a 404 was returned for that item"
+                headline = link.text
+                body = "<p><b>The Guardian Open Platform returned a 404 error for that article; i.e. it could not be found.</b></p>"
 
             page_filename = "{0:03d}.html".format(page_number)
 
