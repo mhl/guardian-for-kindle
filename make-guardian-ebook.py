@@ -419,11 +419,7 @@ with open(nav_contents_filename,"w") as fp:
 
 files.append(contents_filename)
 files.append(nav_contents_filename)
-
 files.append(cover_image_filename)
-
-
-
 
 opf_filename = book_basename+".opf"
 mobi_filename = book_basename+".mobi"
