@@ -469,7 +469,7 @@ etree.SubElement(guide,"reference",
                          "href":contents_filename})
 etree.SubElement(guide,"reference",
                  attrib={"type":"text",
-                         "title":filename_to_headline['001.html'].encode('UTF-8'),
+                         "title":filename_to_headline['001.html'],
                          "href":'001.html'})
 
 with open(opf_filename,"w") as fp:
