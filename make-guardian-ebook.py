@@ -49,6 +49,8 @@ import gd
 #  - Indicate missing pages in the contents and (?) by including pages
 #    with no body
 
+sleep_seconds_after_api_call = 1
+
 api_key = None
 
 with open(os.path.join(os.environ['HOME'],
@@ -141,11 +143,12 @@ def url_to_element_tree(url):
                 raise Exception, "The API return 403: is your API key correct?"
             # Otherwise it's probably a 404, an article that's now been removed:
             elif e.code == 404:
+                time.sleep(sleep_seconds_after_api_call)
                 return None
             else:
                 raise Exception, "An unexpected HTTPError was returned: "+str(e)
         # Sleep to avoid making API requests faster than is allowed:
-        time.sleep(0.6)
+        time.sleep(sleep_seconds_after_api_call)
         with open(filename,"w") as fp:
             fp.write(text)
     return etree.parse(filename)
