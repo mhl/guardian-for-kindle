@@ -352,42 +352,70 @@ with open(contents_filename,"w") as fp:
 
 filename_to_headline[contents_filename] = "Table of Contents"
 
+# ========================================================================
+# Now generate the NCX table of contents:
+
+ncx_namespace = "http://www.daisy.org/z3986/2005/ncx/"
+
+ncx = etree.Element("ncx",
+                    nsmap={None : ncx_namespace},
+                    attrib={"version" : "2005-1",
+                            "{xml}lang" : "en-US"})
+
+head = etree.SubElement(ncx,"head")
+etree.SubElement(head,"meta",
+                 attrib={"name" : "dtb:uid",
+                         "content" : book_id })
+etree.SubElement(head,"meta",
+                 attrib={"name" : "dtb:depth",
+                         "content" : "2" })
+etree.SubElement(head,"meta",
+                 attrib={"name" : "dtb:totalPageCount",
+                         "content" : "0" })
+etree.SubElement(head,"meta",
+                 attrib={"name" : "dtb:maxPageNumber",
+                         "content" : "0" })
+
+title_text_element = etree.Element("text")
+title_text_element.text = book_title_short
+author_text_element = etree.Element("text")
+author_text_element.text = paper
+
+etree.SubElement(ncx,"docTitle").append(title_text_element)
+etree.SubElement(ncx,"docAuthor").append(author_text_element)
+
+nav_map = etree.SubElement(ncx,"navMap")
+
+nav_contents_files = [ contents_filename ] + [ x for x in files if re.search('\.html$',x) ]
+i = 1
+for f in nav_contents_files:
+    point_class = "chapter"
+    item_id = re.sub('\..*$','',f)
+    if f == contents_filename:
+        point_class = "toc"
+    nav_point = etree.SubElement(nav_map,"navPoint",
+                                 attrib={"class" : point_class,
+                                         "id" : item_id,
+                                         "playOrder" : str(i) })
+    content = etree.Element("content",attrib={"src" : f})
+    title_text_element = etree.Element("text")
+    title_text_element.text = filename_to_headline[f]
+    nav_label = etree.SubElement(nav_point,"navLabel")
+    nav_label.append(title_text_element)
+    nav_point.append(content)
+    i += 1
+
 with open(nav_contents_filename,"w") as fp:
-    fp.write('''<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN"
-        "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
+    fp.write("<?xml version='1.0' encoding='utf-8'?>\n")
+    # I don't think there's an elegant way of setting the
+    # doctype using lxml.etree, but I could be wrong...
+    fp.write('<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">'+"\n")
+    fp.write(etree.tostring(ncx,
+                            pretty_print=True,
+                            encoding="utf-8",
+                            xml_declaration=True))
 
-<!--
-        For a detailed description of NCX usage please refer to:
-        http://www.idpf.org/2007/opf/OPF_2.0_final_spec.html#Section2.4.1
--->
-
-<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1" xml:lang="en-US">
-<head>
-<meta name="dtb:uid" content="{book_id}"/>
-<meta name="dtb:depth" content="2"/>
-<meta name="dtb:totalPageCount" content="0"/>
-<meta name="dtb:maxPageNumber" content="0"/>
-</head>
-<docTitle><text>{title}</text></docTitle>
-<docAuthor><text>{author}</text></docAuthor>
-  <navMap>
-'''.format(book_id=book_id,title=book_title_short,author=paper))
-    nav_contents_files = [ contents_filename ] + [ x for x in files if re.search('\.html$',x) ]
-    i = 1
-    for f in nav_contents_files:
-        point_class = "chapter"
-        item_id = re.sub('\..*$','',f)
-        if f == contents_filename:
-            point_class = "toc"
-        fp.write('<navPoint class="{point_class}" id="{item_id}" playOrder="{play_index}"><navLabel><text>{title}</text></navLabel><content src="{f}"/></navPoint>\n'.format(
-                point_class = point_class,
-                item_id = item_id,
-                play_index = i,
-                title = filename_to_headline[f].encode('UTF-8'),
-                f = f))
-        i += 1
-    fp.write('</navMap></ncx>')
+# ========================================================================
 
 files.append(contents_filename)
 files.append(nav_contents_filename)
