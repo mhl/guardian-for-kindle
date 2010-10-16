@@ -449,11 +449,11 @@ etree.SubElement(guide,"reference",
                          "href":'001.html'})
 
 with open(opf_filename,"w") as fp:
-    element_tree = etree.ElementTree(package)
-    element_tree.write(fp,
-                       pretty_print=True,
-                       encoding="utf-8",
-                       xml_declaration=True)
+    opf_element_tree = etree.ElementTree(package)
+    opf_element_tree.write(fp,
+                           pretty_print=True,
+                           encoding="utf-8",
+                           xml_declaration=True)
 
 # ========================================================================
 
