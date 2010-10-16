@@ -302,7 +302,7 @@ def extension_to_media_type(extension):
     else:
         raise Exception, "Unknown extension: "+extension
 
-# Now write the OPF:
+# Create the two contents files, one HTML and one NCX:
 
 contents_filename = "contents.html"
 nav_contents_filename = "nav-contents.ncx"
