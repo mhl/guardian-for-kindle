@@ -307,7 +307,13 @@ def extension_to_media_type(extension):
 contents_filename = "contents.html"
 nav_contents_filename = "nav-contents.ncx"
 
-spine = '    <itemref idref="contents"/>\n'
+# (Build up the spine elements for the OPF in the same loop...)
+
+spine = etree.Element("spine",
+                      attrib={"toc" : "nav-contents"})
+
+etree.SubElement(spine,"itemref",
+                 attrib={"idref":"contents"})
 
 with open(contents_filename,"w") as fp:
 
@@ -332,7 +338,9 @@ with open(contents_filename,"w") as fp:
                 fp.write('  <ul>\n')
             current_part = part_for_this_file
             fp.write('    <li><a href="{f}">{h}</a></li>\n'.format(f=f,h=filename_to_headline[f].encode('UTF-8')))
-            spine += '    <itemref idref="{item_id}"/>\n'.format(item_id=re.sub('\..*$','',f))
+
+            etree.SubElement(spine,"itemref",
+                             attrib={"idref":re.sub('\..*$','',f)})
 
     fp.write('''
   </ul>
@@ -383,60 +391,68 @@ files.append(nav_contents_filename)
 
 files.append(cover_image_filename)
 
-manifest = ""
 
-for f in files:
-    item_id = re.sub('\..*$','',f)
-    extension = re.sub('^.*\.','',f)
-    manifest += '    <item id="{item_id}" media-type="{media_type}" href="{filename}"/>\n'.format(
-        item_id=item_id,
-        media_type=extension_to_media_type(extension),
-        filename=f)
+
 
 opf_filename = book_basename+".opf"
 mobi_filename = book_basename+".mobi"
 
+# ========================================================================
+# Now generate the structure of the OPF file using lxml.etree:
+
+opf_namespace = "http://www.idpf.org/2007/opf"
+dc_namespace = "http://purl.org/dc/elements/1.1/"
+metadata_nsmap = { "dc" : dc_namespace }
+dc = "{{{0}}}".format(dc_namespace)
+
+package = etree.Element("{{{0}}}package".format(opf_namespace),
+                        nsmap={None:opf_namespace},
+                        attrib={"version":"2.0",
+                                "unique-identifier":"Guardian_2010-10-15"})
+
+metadata = etree.Element("metadata",
+                         nsmap=metadata_nsmap)
+package.append( metadata )
+etree.SubElement(metadata,dc+"title").text = book_title_short
+etree.SubElement(metadata,dc+"language").text = "en-gb"
+etree.SubElement(metadata,"meta",attrib={"name":"cover",
+                                         "content":"cover-image"})
+etree.SubElement(metadata,dc+"creator").text = paper
+etree.SubElement(metadata,dc+"publisher").text = paper
+etree.SubElement(metadata,dc+"subject").text = "News"
+etree.SubElement(metadata,dc+"date").text = today
+etree.SubElement(metadata,dc+"description").text = "An unofficial ebook edition of {0} on {1}".format(paper,today_long)
+
+manifest = etree.SubElement(package,"manifest")
+
+for f in files:
+    item_id = re.sub('\..*$','',f)
+    extension = re.sub('^.*\.','',f)
+    etree.SubElement(manifest,"item",
+                     attrib={"id" : item_id,
+                             "media-type" : extension_to_media_type(extension),
+                             "href" : f})
+
+package.append(spine)
+
+guide = etree.SubElement(package,"guide")
+etree.SubElement(guide,"reference",
+                 attrib={"type":"toc",
+                         "title":"Table of Contents",
+                         "href":contents_filename})
+etree.SubElement(guide,"reference",
+                 attrib={"type":"text",
+                         "title":filename_to_headline['001.html'].encode('UTF-8'),
+                         "href":'001.html'})
+
 with open(opf_filename,"w") as fp:
-    fp.write('''<?xml version="1.0" encoding="utf-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="{book_id}">
-  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
-    <dc:title>{book_title}</dc:title>
-    <dc:language>en-gb</dc:language>
-    <meta name="cover" content="{cover_id}"/>
-    <dc:creator>{creator}</dc:creator>
-    <dc:publisher>{publisher}</dc:publisher>
-    <dc:subject>News</dc:subject>
-    <dc:date>{publication_date}</dc:date>
-    <dc:description>{description}</dc:description>
-  </metadata>
+    element_tree = etree.ElementTree(package)
+    element_tree.write(fp,
+                       pretty_print=True,
+                       encoding="utf-8",
+                       xml_declaration=True)
 
-  <manifest>
-{all_files}
-  </manifest>
-
-  <spine toc="nav-contents">
-{spine}
-  </spine>
-
-  <guide>
-    <reference type="toc" title="Table of Contents" href="{contents_filename}"></reference>
-    <reference type="text" title="{first_page_title}" href="{first_page_filename}"></reference>
-  </guide>
-
-</package>
-'''.format( book_id = book_id,
-            book_title = book_title_short,
-            cover_id = "cover-image",
-            creator = paper,
-            publisher = paper,
-            publication_date = today,
-            description = "An unofficial ebook edition of {0} on {1}".format(paper,today_long),
-            all_files = manifest,
-            spine = spine,
-            contents_filename = contents_filename,
-            first_page_filename = '001.html',
-            first_page_title = filename_to_headline['001.html'].encode('UTF-8')
-            ))
+# ========================================================================
 
 with open("/dev/null","w") as null:
     if 0 == call(['kindlegen'],stdout=null):
