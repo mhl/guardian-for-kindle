@@ -26,6 +26,8 @@ from lxml import etree
 import time
 from StringIO import StringIO
 import gd
+from lxml.builder import E
+from lxml.html import fragments_fromstring
 
 # This script will create an opf version of The Guardian (or The
 # Observer on Sunday) suitable for turning into a .mobi file for
@@ -245,48 +247,47 @@ with open(today_filename) as fp:
 
             page_filename = "{0:03d}.html".format(page_number)
 
+            html_body = E.body(E.h3(headline))
+            if byline:
+                html_body.append( E.h4('By '+byline) )
+            html_body.append( E.p('[{p}: {s}]'.format(p=paper_part,s=section_name)) )
+            if standfirst:
+                standfirst_fragments = fragments_fromstring(standfirst)
+                standfirst_element = E.p( E.em( *standfirst_fragments ) )
+                html_body.append( standfirst_element )
+            if thumbnail:
+                extension = re.sub('^.*\.','',thumbnail)
+                thumbnail_filename = "{0:03d}-thumb.{1:}".format(page_number,extension)
+                if not os.path.exists(thumbnail_filename):
+                    with open(thumbnail_filename,"w") as fp:
+                        fp.write(urlopen(thumbnail).read())
+                files.append(thumbnail_filename)
+                html_body.append( E.p( E.img( { 'src': thumbnail_filename } ) ) )
+            if body:
+                body_element_tree = etree.parse(StringIO(body),html_parser)
+                image_elements = body_element_tree.findall('//img')
+                for i, image_element in enumerate(image_elements):
+                    ad_url = image_element.attrib['src']
+                    ad_filename = '{0:03d}-ad-{1:02d}.gif'.format(page_number,i)
+                    if not os.path.exists(ad_filename):
+                        with open(ad_filename,'w') as fp:
+                            fp.write(urlopen(ad_url).read())
+                    image_element.attrib['src'] = ad_filename
+                    files.append(ad_filename)
+                for e in body_element_tree.getroot()[0]:
+                    html_body.append(e)
+            if short_url:
+                html_body.append( E.p('Original story: ', E.a( { 'href': short_url }, short_url ) ) )
+            html_body.append( E.p( 'Content from the ', E.a( { 'href' : 'http://www.guardian.co.uk/open-platform' }, "Guardian Open Platform" ) ) )
+
+            html = E.html( E.head( E.meta( { 'http-equiv' : 'Content-Type',
+                                             'content' : 'text/html; charset=utf-8' } ),
+                                   E.title( u'{g} on {t}: [{p}] {h}'.format( g=paper, t=today, p=page_number, h=headline ) ) ),
+                           html_body )
+
             with open(page_filename,"w") as page_fp:
-                page_fp.write('''<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>{paper} on {today}: [{page}] {headline}</title>
-</head>
-<body>
-'''.format(paper=paper,today=today,page=page_number,headline=headline.encode('UTF-8')))
+                page_fp.write( etree.tostring(html,pretty_print=True) )
 
-                page_fp.write('<h3>{h}</h3>\n'.format(h=headline.encode('UTF-8')))
-                if byline:
-                    page_fp.write('<h4>By {b}</h4>'.format(b=byline.encode('UTF-8')))
-                page_fp.write('<p>[{p}: {s}]</p>'.format(p=paper_part,s=section_name))
-                if standfirst:
-                    page_fp.write('<p><em>{sf}</em></p>'.format(sf=standfirst.encode('UTF-8')))
-
-                if thumbnail:
-                    extension = re.sub('^.*\.','',thumbnail)
-                    thumbnail_filename = "{0:03d}-thumb.{1:}".format(page_number,extension)
-                    if not os.path.exists(thumbnail_filename):
-                        with open(thumbnail_filename,"w") as fp:
-                            fp.write(urlopen(thumbnail).read())
-                    files.append(thumbnail_filename)
-                    page_fp.write('<p><img src="{iu}"></img></p>'.format(iu=thumbnail_filename))
-                if body:
-                    body_element_tree = etree.parse(StringIO(body),html_parser)
-                    image_elements = body_element_tree.findall('//img')
-                    for i, image_element in enumerate(image_elements):
-                        ad_url = image_element.attrib['src']
-                        ad_filename = '{0:03d}-ad-{1:02d}.gif'.format(page_number,i)
-                        if not os.path.exists(ad_filename):
-                            with open(ad_filename,'w') as fp:
-                                fp.write(urlopen(ad_url).read())
-                        image_element.attrib['src'] = ad_filename
-                        files.append(ad_filename)
-                    for e in body_element_tree.getroot()[0]:
-                        page_fp.write(etree.tostring(e, pretty_print=True))
-                if short_url:
-                    page_fp.write('\n<p>Original story: <a href="{u}">{u}</a></p>\n'.format(u=short_url))
-                    page_fp.write('<p>Content from the <a href="{u}">Guardian Open Platform</a></p>\n'.format(u="http://www.guardian.co.uk/open-platform"))
-                page_fp.write('\n</body></html>')
             filename_to_headline[page_filename] = headline
             filename_to_paper_part[page_filename] = paper_part
 
@@ -317,6 +318,9 @@ spine = etree.Element("spine",
 
 etree.SubElement(spine,"itemref",
                  attrib={"idref":"contents"})
+
+
+
 
 with open(contents_filename,"w") as fp:
 
