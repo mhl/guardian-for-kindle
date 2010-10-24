@@ -21,12 +21,14 @@ import re
 from datetime import date
 from subprocess import check_call, call
 from hashlib import sha1
-from urllib2 import urlopen
+from urllib2 import urlopen, HTTPError
 from lxml import etree
 import time
 from StringIO import StringIO
 import gd
 import errno
+from lxml.builder import E
+from lxml.html import fragments_fromstring
 
 # This script will create an opf version of The Guardian (or The
 # Observer on Sunday) suitable for turning into a .mobi file for
@@ -34,7 +36,9 @@ import errno
 
 # The script has several dependencies:
 #
-#  1. sudo apt-get install python2.6-minimal python-gd python-lxml imagemagick ttf-mscorefonts-installer
+#  sudo apt-get install python2.6-minimal python-gd python-lxml imagemagick ttf-mscorefonts-installer
+#
+# You need to put your API key in ~/.guardian-open-platform-key
 #
 # Also, if the kindlegen binary is on your PATH, a version of the book
 # for kindle will be generated.  (Otherwise you just have the OPF
@@ -43,10 +47,7 @@ import errno
 #
 # ========================================================================
 
-# Things To Do:
-#  - Generate XML / HTML with lxml (or some other less brittle way)
-#  - Indicate missing pages in the contents and (?) by including pages
-#    with no body
+sleep_seconds_after_api_call = 1
 
 api_key = None
 
@@ -126,9 +127,6 @@ with open(cover_image_filename_png,"w") as fp:
 
 check_call(["convert",cover_image_filename_png,cover_image_filename])
 
-def make_content_url(date, page ):
-    return 'http://content.guardianapis.com/search?from-date={d}&to-date={d}&page={p}&page-size=20&order-by=newest&format=xml&show-fields=all&show-tags=all&show-factboxes=all&show-refinements=all&api-key={k}'.format( d=str(date), p=page, k=api_key)
-
 def make_item_url(item_id):
     return 'http://content.guardianapis.com/{i}?format=xml&show-fields=all&show-editors-picks=true&show-most-viewed=true&api-key={k}'.format( i=item_id, k=api_key)
 
@@ -138,16 +136,20 @@ def url_to_element_tree(url):
     if not os.path.exists(filename):
         try:
             text = urlopen(url).read()
-        except:
-            return None
+        except HTTPError, e:
+            if e.code == 403:
+                raise Exception, "The API return 403: is your API key correct?"
+            # Otherwise it's probably a 404, an article that's now been removed:
+            elif e.code == 404:
+                time.sleep(sleep_seconds_after_api_call)
+                return None
+            else:
+                raise Exception, "An unexpected HTTPError was returned: "+str(e)
         # Sleep to avoid making API requests faster than is allowed:
-        time.sleep(0.6)
+        time.sleep(sleep_seconds_after_api_call)
         with open(filename,"w") as fp:
             fp.write(text)
     return etree.parse(filename)
-
-def url_to_root_element(url):
-    return url_to_element_tree(url).getroot()
 
 today_page_url = "http://www.guardian.co.uk/theguardian/all"
 if sunday:
@@ -174,6 +176,17 @@ with open(today_filename) as fp:
         print "["+paper_part+"]"
 
         for li in li.find('ul'):
+
+            headline = '[No headline found]'
+            standfirst = None
+            trail_text = None
+            byline = None
+            body = None
+            thumbnail = None
+            short_url = None
+            publication = None
+            section_name = None
+
             link = li.find('a')
             href = link.get('href')
             m = re.search('http://www\.guardian\.co\.uk/(.*)$',href)
@@ -181,99 +194,96 @@ with open(today_filename) as fp:
             print "  "+item_id
             item_url = make_item_url(item_id)
             element_tree = url_to_element_tree(item_url)
-            if not element_tree:
-                print "    Failed to fetch.  Skipping..."
-                continue
+            if element_tree:
 
-            response_element = element_tree.getroot()
-            if response_element.tag != 'response':
-                print "The root tag unexpectedly wasn't \"response\"."
-                sys.exit(1)
-            status = response_element.attrib['status']
-            if status != "ok":
-                print "    The response element's status was \"{0}\" (i.e. not \"ok\") Skipping...".format(status)
-                continue
+                response_element = element_tree.getroot()
+                if response_element.tag != 'response':
+                    print "The root tag unexpectedly wasn't \"response\"."
+                    sys.exit(1)
+                status = response_element.attrib['status']
+                if status != "ok":
+                    print "    The response element's status was \"{0}\" (i.e. not \"ok\") Skipping...".format(status)
+                    continue
 
-            # FIXME: check the response element here for "ok"
+                content = element_tree.find('//content')
+                section_name = content.attrib['section-name']
 
-            content = element_tree.find('//content')
-            section_name = content.attrib['section-name']
+                for field in element_tree.find('//fields'):
+                    name = field.get('name')
+                    if name == 'standfirst':
+                        standfirst = field.text
+                    elif name == 'trail-text':
+                        trail_text = field.text
+                    elif name == 'byline':
+                        byline = field.text
+                    elif name == 'body':
+                        body = field.text
+                    elif name == 'headline':
+                        headline = field.text
+                    elif name == 'thumbnail':
+                        thumbnail = field.text
+                    elif name == 'short-url':
+                        short_url = field.text
+                    elif name == 'publication':
+                        publication = field.text
 
-            standfirst = None
-            trail_text = None
-            byline = None
-            body = None
-            headline = '[No headline found]'
-            thumbnail = None
-            short_url = None
-            publication = None
+                if body and re.search('Redistribution rights for this field are unavailable',body) and len(body) < 100:
+                    print "    Warning: no redistribution rights available for that article"
+                    body = "<p><b>Redistribution rights for this article were not available.</b></p>"
 
-            for field in element_tree.find('//fields'):
-                name = field.get('name')
-                if name == 'standfirst':
-                    standfirst = field.text
-                elif name == 'trail-text':
-                    trail_text = field.text
-                elif name == 'byline':
-                    byline = field.text
-                elif name == 'body':
-                    body = field.text
-                elif name == 'headline':
-                    headline = field.text
-                elif name == 'thumbnail':
-                    thumbnail = field.text
-                elif name == 'short-url':
-                    short_url = field.text
-                elif name == 'publication':
-                    publication = field.text
-
-            if body and re.search('Redistribution rights for this field are unavailable',body) and len(body) < 100:
-                body = "<p><b>Redistribution rights for this article were not available.</b></p>"
+            else:
+                # If url_to_element_tree returns None that means it's
+                # one of the inexplicable cases where the API returns
+                # a 404, but the article is on the website.  Could
+                # just scrape the article here, but for the moment
+                # just indicate what's happened:
+                print "    Warning: a 404 was returned for that item"
+                headline = link.text
+                body = "<p><b>The Guardian Open Platform returned a 404 error for that article; i.e. it could not be found.</b></p>"
 
             page_filename = "{0:03d}.html".format(page_number)
 
+            html_body = E.body(E.h3(headline))
+            if byline:
+                html_body.append( E.h4('By '+byline) )
+            html_body.append( E.p('[{p}: {s}]'.format(p=paper_part,s=section_name)) )
+            if standfirst:
+                standfirst_fragments = fragments_fromstring(standfirst)
+                standfirst_element = E.p( E.em( *standfirst_fragments ) )
+                html_body.append( standfirst_element )
+            if thumbnail:
+                extension = re.sub('^.*\.','',thumbnail)
+                thumbnail_filename = "{0:03d}-thumb.{1:}".format(page_number,extension)
+                if not os.path.exists(thumbnail_filename):
+                    with open(thumbnail_filename,"w") as fp:
+                        fp.write(urlopen(thumbnail).read())
+                files.append(thumbnail_filename)
+                html_body.append( E.p( E.img( { 'src': thumbnail_filename } ) ) )
+            if body:
+                body_element_tree = etree.parse(StringIO(body),html_parser)
+                image_elements = body_element_tree.findall('//img')
+                for i, image_element in enumerate(image_elements):
+                    ad_url = image_element.attrib['src']
+                    ad_filename = '{0:03d}-ad-{1:02d}.gif'.format(page_number,i)
+                    if not os.path.exists(ad_filename):
+                        with open(ad_filename,'w') as fp:
+                            fp.write(urlopen(ad_url).read())
+                    image_element.attrib['src'] = ad_filename
+                    files.append(ad_filename)
+                for e in body_element_tree.getroot()[0]:
+                    html_body.append(e)
+            if short_url:
+                html_body.append( E.p('Original story: ', E.a( { 'href': short_url }, short_url ) ) )
+            html_body.append( E.p( 'Content from the ', E.a( { 'href' : 'http://www.guardian.co.uk/open-platform' }, "Guardian Open Platform" ) ) )
+
+            html = E.html( E.head( E.meta( { 'http-equiv' : 'Content-Type',
+                                             'content' : 'text/html; charset=utf-8' } ),
+                                   E.title( u'{g} on {t}: [{p}] {h}'.format( g=paper, t=today, p=page_number, h=headline ) ) ),
+                           html_body )
+
             with open(page_filename,"w") as page_fp:
-                page_fp.write('''<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>{paper} on {today}: [{page}] {headline}</title>
-</head>
-<body>
-'''.format(paper=paper,today=today,page=page_number,headline=headline.encode('UTF-8')))
+                page_fp.write( etree.tostring(html,pretty_print=True) )
 
-                page_fp.write('<h3>{h}</h3>\n'.format(h=headline.encode('UTF-8')))
-                if byline:
-                    page_fp.write('<h4>By {b}</h4>'.format(b=byline.encode('UTF-8')))
-                page_fp.write('<p>[{p}: {s}]</p>'.format(p=paper_part,s=section_name))
-                if standfirst:
-                    page_fp.write('<p><em>{sf}</em></p>'.format(sf=standfirst.encode('UTF-8')))
-
-                if thumbnail:
-                    extension = re.sub('^.*\.','',thumbnail)
-                    thumbnail_filename = "{0:03d}-thumb.{1:}".format(page_number,extension)
-                    if not os.path.exists(thumbnail_filename):
-                        with open(thumbnail_filename,"w") as fp:
-                            fp.write(urlopen(thumbnail).read())
-                    files.append(thumbnail_filename)
-                    page_fp.write('<p><img src="{iu}"></img></p>'.format(iu=thumbnail_filename))
-                if body:
-                    body_element_tree = etree.parse(StringIO(body),html_parser)
-                    image_elements = body_element_tree.findall('//img')
-                    for i, image_element in enumerate(image_elements):
-                        ad_url = image_element.attrib['src']
-                        ad_filename = '{0:03d}-ad-{1:02d}.gif'.format(page_number,i)
-                        if not os.path.exists(ad_filename):
-                            with open(ad_filename,'w') as fp:
-                                fp.write(urlopen(ad_url).read())
-                        image_element.attrib['src'] = ad_filename
-                        files.append(ad_filename)
-                    for e in body_element_tree.getroot()[0]:
-                        page_fp.write(etree.tostring(e, pretty_print=True))
-                if short_url:
-                    page_fp.write('\n<p>Original story: <a href="{u}">{u}</a></p>\n'.format(u=short_url))
-                    page_fp.write('<p>Content from the <a href="{u}">Guardian Open Platform</a></p>\n'.format(u="http://www.guardian.co.uk/open-platform"))
-                page_fp.write('\n</body></html>')
             filename_to_headline[page_filename] = headline
             filename_to_paper_part[page_filename] = paper_part
 
@@ -292,141 +302,175 @@ def extension_to_media_type(extension):
     else:
         raise Exception, "Unknown extension: "+extension
 
-# Now write the OPF:
+# Create the two contents files, one HTML and one NCX:
 
 contents_filename = "contents.html"
 nav_contents_filename = "nav-contents.ncx"
 
-spine = '    <itemref idref="contents"/>\n'
+# (Build up the spine elements for the OPF in the same loop...)
+
+spine = etree.Element("spine",
+                      attrib={"toc" : "nav-contents"})
+
+etree.SubElement(spine,"itemref",
+                 attrib={"idref":"contents"})
+
+body_element = E.body(E.h1("Contents"))
+
+current_part = None
+current_list = None
+
+for f in files:
+    if re.search('\.html$',f):
+        part_for_this_file = filename_to_paper_part[f]
+        if current_part != part_for_this_file:
+            body_element.append( E.h4( part_for_this_file ) )
+            current_list = E.ul( )
+            body_element.append( current_list )
+        current_part = part_for_this_file
+        current_list.append( E.li( E.a( { 'href': f }, filename_to_headline[f] ) ) )
+
+        etree.SubElement(spine,"itemref",
+                         attrib={"idref":re.sub('\..*$','',f)})
 
 with open(contents_filename,"w") as fp:
-
-    fp.write('''<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>Table of Contents</title>
-</head>
-<body>
-<h1>Contents</h1>\n''')
-
-    current_part = None
-
-    for f in files:
-        if re.search('\.html$',f):
-            part_for_this_file = filename_to_paper_part[f]
-            if current_part != part_for_this_file:
-                if current_part:
-                    fp.write('  </ul>\n')
-                fp.write('<h4>{p}</h4>\n'.format(p=part_for_this_file))
-                fp.write('  <ul>\n')
-            current_part = part_for_this_file
-            fp.write('    <li><a href="{f}">{h}</a></li>\n'.format(f=f,h=filename_to_headline[f].encode('UTF-8')))
-            spine += '    <itemref idref="{item_id}"/>\n'.format(item_id=re.sub('\..*$','',f))
-
-    fp.write('''
-  </ul>
-</body>
-</html>''')
+    html = E.html( E.head(
+            E.meta( { 'http-equiv' : 'Content-Type',
+                      'content' : 'text/html; charset=utf-8' } ),
+            E.title( "Table of Contents" ) ),
+                   body_element )
+    fp.write(etree.tostring(html,pretty_print=True))
 
 filename_to_headline[contents_filename] = "Table of Contents"
 
+# ========================================================================
+# Now generate the NCX table of contents:
+
+ncx_namespace = "http://www.daisy.org/z3986/2005/ncx/"
+
+ncx = etree.Element("ncx",
+                    nsmap={None : ncx_namespace},
+                    attrib={"version" : "2005-1",
+                            "{xml}lang" : "en-US"})
+
+head = etree.SubElement(ncx,"head")
+etree.SubElement(head,"meta",
+                 attrib={"name" : "dtb:uid",
+                         "content" : book_id })
+etree.SubElement(head,"meta",
+                 attrib={"name" : "dtb:depth",
+                         "content" : "2" })
+etree.SubElement(head,"meta",
+                 attrib={"name" : "dtb:totalPageCount",
+                         "content" : "0" })
+etree.SubElement(head,"meta",
+                 attrib={"name" : "dtb:maxPageNumber",
+                         "content" : "0" })
+
+title_text_element = etree.Element("text")
+title_text_element.text = book_title_short
+author_text_element = etree.Element("text")
+author_text_element.text = paper
+
+etree.SubElement(ncx,"docTitle").append(title_text_element)
+etree.SubElement(ncx,"docAuthor").append(author_text_element)
+
+nav_map = etree.SubElement(ncx,"navMap")
+
+nav_contents_files = [ contents_filename ] + [ x for x in files if re.search('\.html$',x) ]
+i = 1
+for f in nav_contents_files:
+    point_class = "chapter"
+    item_id = re.sub('\..*$','',f)
+    if f == contents_filename:
+        point_class = "toc"
+    nav_point = etree.SubElement(nav_map,"navPoint",
+                                 attrib={"class" : point_class,
+                                         "id" : item_id,
+                                         "playOrder" : str(i) })
+    content = etree.Element("content",attrib={"src" : f})
+    title_text_element = etree.Element("text")
+    title_text_element.text = filename_to_headline[f]
+    nav_label = etree.SubElement(nav_point,"navLabel")
+    nav_label.append(title_text_element)
+    nav_point.append(content)
+    i += 1
+
 with open(nav_contents_filename,"w") as fp:
-    fp.write('''<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN"
-        "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
+    fp.write("<?xml version='1.0' encoding='utf-8'?>\n")
+    # I don't think there's an elegant way of setting the
+    # doctype using lxml.etree, but I could be wrong...
+    fp.write('<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">'+"\n")
+    fp.write(etree.tostring(ncx,
+                            pretty_print=True,
+                            encoding="utf-8",
+                            xml_declaration=True))
 
-<!--
-        For a detailed description of NCX usage please refer to:
-        http://www.idpf.org/2007/opf/OPF_2.0_final_spec.html#Section2.4.1
--->
-
-<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1" xml:lang="en-US">
-<head>
-<meta name="dtb:uid" content="{book_id}"/>
-<meta name="dtb:depth" content="2"/>
-<meta name="dtb:totalPageCount" content="0"/>
-<meta name="dtb:maxPageNumber" content="0"/>
-</head>
-<docTitle><text>{title}</text></docTitle>
-<docAuthor><text>{author}</text></docAuthor>
-  <navMap>
-'''.format(book_id=book_id,title=book_title_short,author=paper))
-    nav_contents_files = [ contents_filename ] + [ x for x in files if re.search('\.html$',x) ]
-    i = 1
-    for f in nav_contents_files:
-        point_class = "chapter"
-        item_id = re.sub('\..*$','',f)
-        if f == contents_filename:
-            point_class = "toc"
-        fp.write('<navPoint class="{point_class}" id="{item_id}" playOrder="{play_index}"><navLabel><text>{title}</text></navLabel><content src="{f}"/></navPoint>\n'.format(
-                point_class = point_class,
-                item_id = item_id,
-                play_index = i,
-                title = filename_to_headline[f].encode('UTF-8'),
-                f = f))
-        i += 1
-    fp.write('</navMap></ncx>')
+# ========================================================================
 
 files.append(contents_filename)
 files.append(nav_contents_filename)
-
 files.append(cover_image_filename)
-
-manifest = ""
-
-for f in files:
-    item_id = re.sub('\..*$','',f)
-    extension = re.sub('^.*\.','',f)
-    manifest += '    <item id="{item_id}" media-type="{media_type}" href="{filename}"/>\n'.format(
-        item_id=item_id,
-        media_type=extension_to_media_type(extension),
-        filename=f)
 
 opf_filename = book_basename+".opf"
 mobi_filename = book_basename+".mobi"
 
+# ========================================================================
+# Now generate the structure of the OPF file using lxml.etree:
+
+opf_namespace = "http://www.idpf.org/2007/opf"
+dc_namespace = "http://purl.org/dc/elements/1.1/"
+metadata_nsmap = { "dc" : dc_namespace }
+dc = "{{{0}}}".format(dc_namespace)
+
+package = etree.Element("{{{0}}}package".format(opf_namespace),
+                        nsmap={None:opf_namespace},
+                        attrib={"version":"2.0",
+                                "unique-identifier":"Guardian_2010-10-15"})
+
+metadata = etree.Element("metadata",
+                         nsmap=metadata_nsmap)
+package.append( metadata )
+etree.SubElement(metadata,dc+"title").text = book_title_short
+etree.SubElement(metadata,dc+"language").text = "en-gb"
+etree.SubElement(metadata,"meta",attrib={"name":"cover",
+                                         "content":"cover-image"})
+etree.SubElement(metadata,dc+"creator").text = paper
+etree.SubElement(metadata,dc+"publisher").text = paper
+etree.SubElement(metadata,dc+"subject").text = "News"
+etree.SubElement(metadata,dc+"date").text = today
+etree.SubElement(metadata,dc+"description").text = "An unofficial ebook edition of {0} on {1}".format(paper,today_long)
+
+manifest = etree.SubElement(package,"manifest")
+
+for f in files:
+    item_id = re.sub('\..*$','',f)
+    extension = re.sub('^.*\.','',f)
+    etree.SubElement(manifest,"item",
+                     attrib={"id" : item_id,
+                             "media-type" : extension_to_media_type(extension),
+                             "href" : f})
+
+package.append(spine)
+
+guide = etree.SubElement(package,"guide")
+etree.SubElement(guide,"reference",
+                 attrib={"type":"toc",
+                         "title":"Table of Contents",
+                         "href":contents_filename})
+etree.SubElement(guide,"reference",
+                 attrib={"type":"text",
+                         "title":filename_to_headline['001.html'],
+                         "href":'001.html'})
+
 with open(opf_filename,"w") as fp:
-    fp.write('''<?xml version="1.0" encoding="utf-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="{book_id}">
-  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
-    <dc:title>{book_title}</dc:title>
-    <dc:language>en-gb</dc:language>
-    <meta name="cover" content="{cover_id}"/>
-    <dc:creator>{creator}</dc:creator>
-    <dc:publisher>{publisher}</dc:publisher>
-    <dc:subject>News</dc:subject>
-    <dc:date>{publication_date}</dc:date>
-    <dc:description>{description}</dc:description>
-  </metadata>
+    opf_element_tree = etree.ElementTree(package)
+    opf_element_tree.write(fp,
+                           pretty_print=True,
+                           encoding="utf-8",
+                           xml_declaration=True)
 
-  <manifest>
-{all_files}
-  </manifest>
-
-  <spine toc="nav-contents">
-{spine}
-  </spine>
-
-  <guide>
-    <reference type="toc" title="Table of Contents" href="{contents_filename}"></reference>
-    <reference type="text" title="{first_page_title}" href="{first_page_filename}"></reference>
-  </guide>
-
-</package>
-'''.format( book_id = book_id,
-            book_title = book_title_short,
-            cover_id = "cover-image",
-            creator = paper,
-            publisher = paper,
-            publication_date = today,
-            description = "An unofficial ebook edition of {0} on {1}".format(paper,today_long),
-            all_files = manifest,
-            spine = spine,
-            contents_filename = contents_filename,
-            first_page_filename = '001.html',
-            first_page_title = filename_to_headline['001.html']
-            ))
+# ========================================================================
 
 with open("/dev/null","w") as null:
     try:
