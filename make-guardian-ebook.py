@@ -319,40 +319,31 @@ spine = etree.Element("spine",
 etree.SubElement(spine,"itemref",
                  attrib={"idref":"contents"})
 
+body_element = E.body(E.h1("Contents"))
 
+current_part = None
+current_list = None
 
+for f in files:
+    if re.search('\.html$',f):
+        part_for_this_file = filename_to_paper_part[f]
+        if current_part != part_for_this_file:
+            body_element.append( E.h4( part_for_this_file ) )
+            current_list = E.ul( )
+            body_element.append( current_list )
+        current_part = part_for_this_file
+        current_list.append( E.li( E.a( { 'href': f }, filename_to_headline[f] ) ) )
+
+        etree.SubElement(spine,"itemref",
+                         attrib={"idref":re.sub('\..*$','',f)})
 
 with open(contents_filename,"w") as fp:
-
-    fp.write('''<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>Table of Contents</title>
-</head>
-<body>
-<h1>Contents</h1>\n''')
-
-    current_part = None
-
-    for f in files:
-        if re.search('\.html$',f):
-            part_for_this_file = filename_to_paper_part[f]
-            if current_part != part_for_this_file:
-                if current_part:
-                    fp.write('  </ul>\n')
-                fp.write('<h4>{p}</h4>\n'.format(p=part_for_this_file))
-                fp.write('  <ul>\n')
-            current_part = part_for_this_file
-            fp.write('    <li><a href="{f}">{h}</a></li>\n'.format(f=f,h=filename_to_headline[f].encode('UTF-8')))
-
-            etree.SubElement(spine,"itemref",
-                             attrib={"idref":re.sub('\..*$','',f)})
-
-    fp.write('''
-  </ul>
-</body>
-</html>''')
+    html = E.html( E.head(
+            E.meta( { 'http-equiv' : 'Content-Type',
+                      'content' : 'text/html; charset=utf-8' } ),
+            E.title( "Table of Contents" ) ),
+                   body_element )
+    fp.write(etree.tostring(html,pretty_print=True))
 
 filename_to_headline[contents_filename] = "Table of Contents"
 
