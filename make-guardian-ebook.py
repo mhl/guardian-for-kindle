@@ -26,6 +26,7 @@ from lxml import etree
 import time
 from StringIO import StringIO
 import gd
+import errno
 
 # This script will create an opf version of The Guardian (or The
 # Observer on Sunday) suitable for turning into a .mobi file for
@@ -428,8 +429,10 @@ with open(opf_filename,"w") as fp:
             ))
 
 with open("/dev/null","w") as null:
-    if 0 == call(['kindlegen'],stdout=null):
-        # The kindlegen is available:
-        call(['kindlegen','-o',mobi_filename,opf_filename])
-    else:
-        print "Warning: kindlegen was not on your path; not generating .mobi version"
+    try:
+        check_call(['kindlegen','-o',mobi_filename,opf_filename])
+    except OSError, e:
+        if e.errno == errno.ENOENT:
+            print "Warning: kindlegen was not on your path; not generating .mobi version"
+        else:
+            raise
