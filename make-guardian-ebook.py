@@ -46,11 +46,6 @@ from lxml.html import fragments_fromstring
 #
 # ========================================================================
 
-# Things To Do:
-#  - Generate XML / HTML with lxml (or some other less brittle way)
-#  - Indicate missing pages in the contents and (?) by including pages
-#    with no body
-
 sleep_seconds_after_api_call = 1
 
 api_key = None
