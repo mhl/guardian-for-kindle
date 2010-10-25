@@ -80,6 +80,7 @@ book_title = paper + " on "+today_long
 book_title_short = paper + " on " + today
 book_basename = "guardian-"+today
 
+# ========================================================================
 # Now draw the cover image:
 
 cover_image_basename = "cover-image"
@@ -127,6 +128,8 @@ with open(cover_image_filename_png,"w") as fp:
 
 check_call(["convert",cover_image_filename_png,cover_image_filename])
 
+# ========================================================================
+
 def make_item_url(item_id):
     return 'http://content.guardianapis.com/{i}?format=xml&show-fields=all&show-editors-picks=true&show-most-viewed=true&api-key={k}'.format( i=item_id, k=api_key)
 
@@ -150,6 +153,10 @@ def url_to_element_tree(url):
         with open(filename,"w") as fp:
             fp.write(text)
     return etree.parse(filename)
+
+# ========================================================================
+# Iterate over every link found in the "All Guardian Stories" page for
+# today, and generate a version of each story in very simple HTML:
 
 today_page_url = "http://www.guardian.co.uk/theguardian/all"
 if sunday:
@@ -290,6 +297,9 @@ with open(today_filename) as fp:
             page_number += 1
             files.append(page_filename)
 
+# ========================================================================
+# Create the two contents files, one HTML and one NCX:
+
 def extension_to_media_type(extension):
     if extension == 'gif':
         return 'image/gif'
@@ -301,8 +311,6 @@ def extension_to_media_type(extension):
         return 'application/x-dtbncx+xml'
     else:
         raise Exception, "Unknown extension: "+extension
-
-# Create the two contents files, one HTML and one NCX:
 
 contents_filename = "contents.html"
 nav_contents_filename = "nav-contents.ncx"
