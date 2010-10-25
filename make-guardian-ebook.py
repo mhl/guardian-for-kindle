@@ -474,7 +474,7 @@ with open(opf_filename,"w") as fp:
 
 with open("/dev/null","w") as null:
     try:
-        check_call(['kindlegen','-o',mobi_filename,opf_filename])
+        call(['kindlegen','-o',mobi_filename,opf_filename])
     except OSError, e:
         if e.errno == errno.ENOENT:
             print "Warning: kindlegen was not on your path; not generating .mobi version"
