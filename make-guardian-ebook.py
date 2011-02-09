@@ -19,7 +19,7 @@ import sys
 import os
 import re
 from datetime import date
-from subprocess import check_call, call
+from subprocess import check_output, check_call, call
 from hashlib import sha1
 from urllib2 import urlopen, HTTPError
 from lxml import etree
@@ -92,8 +92,7 @@ h = 800
 
 top_offset = 100
 
-# font_filename = "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf"
-font_filename = "/usr/share/fonts/truetype/msttcorefonts/arial.ttf"
+font_filename = check_output(['fc-match', '-f', '"%{file}"', 'Helvetica']).replace('\"','')
 
 new_cover_image = gd.image((w,h))
 white = new_cover_image.colorAllocate((255,255,255))
@@ -115,13 +114,17 @@ y = top_offset + logo_size[1] + top_offset
 subtitle = today_long + "\n\nUnoffical Kindle version based on the Guardian Open Platform"
 subtitle += "\nEmail: Mark Longair <mark-guardiankindle@longair.net>"
 
-new_cover_image.string_ttf(
+try:
+    new_cover_image.string_ttf(
     font_filename,
     14,
     0,
     (28,y),
     subtitle,
     black)
+except ValueError, e:
+    print "Error: " + str(e) + ' ' + font_filename
+    sys.exit(1)
 
 with open(cover_image_filename_png,"w") as fp:
     new_cover_image.writePng(fp)
@@ -488,3 +491,5 @@ with open("/dev/null","w") as null:
             print "Warning: kindlegen was not on your path; not generating .mobi version"
         else:
             raise
+
+ # vim: set expandtab :
