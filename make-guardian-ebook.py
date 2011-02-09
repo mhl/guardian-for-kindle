@@ -388,15 +388,36 @@ etree.SubElement(ncx,"docAuthor").append(author_text_element)
 
 nav_map = etree.SubElement(ncx,"navMap")
 
-nav_contents_files = [ contents_filename ] + [ x for x in files if re.search('\.html$',x) ]
+nav_point_periodical = etree.SubElement(nav_map, "navPoint", attrib={"class": "periodical"})
+content = etree.Element("content",attrib={"src" : contents_filename})
+title_text_element = etree.Element("text")
+title_text_element.text = filename_to_headline[contents_filename]
+nav_label = etree.SubElement(nav_point_periodical, "navLabel")
+nav_label.append(title_text_element)
+nav_point_periodical.append(content)
+
+nav_contents_files = [ x for x in files if re.search('\.html$',x) ]
 i = 1
+nav_point_section = nav_point_periodical
 for f in nav_contents_files:
-    point_class = "chapter"
+    part_for_this_file = filename_to_paper_part[f]
+    if current_part != part_for_this_file:
+        nav_point_section = etree.SubElement(nav_point_periodical,"navPoint",
+                                     attrib={"class" : "section",
+                                             "id" : part_for_this_file,
+                                             "playOrder" : str(i) })
+        content = etree.Element("content",attrib={"src" : f})
+        title_text_element = etree.Element("text")
+        title_text_element.text = part_for_this_file
+        nav_label = etree.SubElement(nav_point_section ,"navLabel")
+        nav_label.append(title_text_element)
+        nav_point_section.append(content)
+        i += 1
+
+    current_part = part_for_this_file
     item_id = re.sub('\..*$','',f)
-    if f == contents_filename:
-        point_class = "toc"
-    nav_point = etree.SubElement(nav_map,"navPoint",
-                                 attrib={"class" : point_class,
+    nav_point = etree.SubElement(nav_point_section,"navPoint",
+                                 attrib={"class" : "article",
                                          "id" : item_id,
                                          "playOrder" : str(i) })
     content = etree.Element("content",attrib={"src" : f})
@@ -431,26 +452,33 @@ mobi_filename = book_basename+".mobi"
 
 opf_namespace = "http://www.idpf.org/2007/opf"
 dc_namespace = "http://purl.org/dc/elements/1.1/"
-metadata_nsmap = { "dc" : dc_namespace }
+dc_metadata_nsmap = { "dc" : dc_namespace }
 dc = "{{{0}}}".format(dc_namespace)
 
 package = etree.Element("{{{0}}}package".format(opf_namespace),
                         nsmap={None:opf_namespace},
                         attrib={"version":"2.0",
                                 "unique-identifier":"Guardian_2010-10-15"})
-
-metadata = etree.Element("metadata",
-                         nsmap=metadata_nsmap)
+metadata = etree.Element("metadata")
 package.append( metadata )
-etree.SubElement(metadata,dc+"title").text = book_title_short
-etree.SubElement(metadata,dc+"language").text = "en-gb"
-etree.SubElement(metadata,"meta",attrib={"name":"cover",
+
+dc_metadata = etree.Element("dc-metadata",
+                         nsmap=dc_metadata_nsmap)
+metadata.append( dc_metadata )
+etree.SubElement(dc_metadata,dc+"title").text = book_title_short
+etree.SubElement(dc_metadata,dc+"language").text = "en-gb"
+etree.SubElement(dc_metadata,"meta",attrib={"name":"cover",
                                          "content":"cover-image"})
-etree.SubElement(metadata,dc+"creator").text = paper
-etree.SubElement(metadata,dc+"publisher").text = paper
-etree.SubElement(metadata,dc+"subject").text = "News"
-etree.SubElement(metadata,dc+"date").text = today
-etree.SubElement(metadata,dc+"description").text = "An unofficial ebook edition of {0} on {1}".format(paper,today_long)
+etree.SubElement(dc_metadata,dc+"creator").text = paper
+etree.SubElement(dc_metadata,dc+"publisher").text = paper
+etree.SubElement(dc_metadata,dc+"subject").text = "News"
+etree.SubElement(dc_metadata,dc+"date").text = today
+etree.SubElement(dc_metadata,dc+"description").text = "An unofficial ebook edition of {0} on {1}".format(paper,today_long)
+
+x_metadata = etree.Element("x-metadata")
+metadata.append( x_metadata )
+etree.SubElement(x_metadata,"output",attrib={"encoding":"utf-8",
+                                         "content-type":"application/x-mobipocket-subscription-magazine"})
 
 manifest = etree.SubElement(package,"manifest")
 
