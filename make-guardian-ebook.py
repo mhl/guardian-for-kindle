@@ -373,7 +373,7 @@ ncx_namespace = "http://www.daisy.org/z3986/2005/ncx/"
 ncx = etree.Element("ncx",
                     nsmap={None : ncx_namespace},
                     attrib={"version" : "2005-1",
-                            "{xml}lang" : "en-US"})
+                            "{http://www.w3.org/XML/1998/namespace}lang" : "en-GB"})
 
 head = etree.SubElement(ncx,"head")
 etree.SubElement(head,"meta",
@@ -447,7 +447,7 @@ with open(nav_contents_filename,"w") as fp:
     fp.write(etree.tostring(ncx,
                             pretty_print=True,
                             encoding="utf-8",
-                            xml_declaration=True))
+                            xml_declaration=False))
 
 # ========================================================================
 
