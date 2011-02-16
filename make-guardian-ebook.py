@@ -19,7 +19,7 @@ import sys
 import os
 import re
 from datetime import date
-from subprocess import check_output, check_call, call
+from subprocess import Popen, check_call, call, PIPE
 from hashlib import sha1
 from urllib2 import urlopen, HTTPError
 from lxml import etree
@@ -92,7 +92,18 @@ h = 800
 
 top_offset = 100
 
-font_filename = check_output(['fc-match', '-f', '"%{file}"', 'Helvetica']).replace('\"','')
+def backticks(command):
+    p = Popen(command,stdout=PIPE)
+    c = p.communicate()
+    if p.returncode != 0:
+        return None
+    else:
+        return c[0]
+
+font_filename = backticks(['fc-match','-f','%{file}','Helvetica'])
+if not font_filename:
+    print "Failed to find a font matching Helvetica"
+    sys.exit(1)
 
 new_cover_image = gd.image((w,h))
 white = new_cover_image.colorAllocate((255,255,255))
