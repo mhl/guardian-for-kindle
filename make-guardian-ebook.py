@@ -140,7 +140,18 @@ except ValueError, e:
 with open(cover_image_filename_png,"w") as fp:
     new_cover_image.writePng(fp)
 
-check_call(["convert",cover_image_filename_png,cover_image_filename])
+# check for GraphicsMagick / ImageMagick to convert png --> gif
+magick_exec = backticks(['which','gm']).strip()
+if magick_exec:
+    magick_exec = [magick_exec,"convert"]
+else:
+    magick_exec = backticks(['which','convert']).strip() 
+
+if not magick_exec:
+    print "Failed to find either GraphicsMagick or ImageMagick"
+    sys.exit(1)
+
+check_call(magick_exec + [cover_image_filename_png,cover_image_filename])
 
 # ========================================================================
 
