@@ -180,6 +180,8 @@ with open(today_filename,"w") as fp:
 html_parser = etree.HTMLParser()
 
 filename_to_headline = {}
+filename_to_description = {}
+filename_to_author = {}
 filename_to_paper_part = {}
 
 files = []
@@ -292,16 +294,20 @@ with open(today_filename) as fp:
                 html_body.append( E.p('Original story: ', E.a( { 'href': short_url }, short_url ) ) )
             html_body.append( E.p( 'Content from the ', E.a( { 'href' : 'http://www.guardian.co.uk/open-platform' }, "Guardian Open Platform" ) ) )
 
-            html = E.html( E.head( E.meta( { 'http-equiv' : 'Content-Type',
-                                             'content' : 'text/html; charset=utf-8' } ),
-                                   E.title( u'{g} on {t}: [{p}] {h}'.format( g=paper, t=today, p=page_number, h=headline ) ) ),
-                           html_body )
+            html = E.html({ "xmlns": 'http://www.w3.org/1999/xhtml', "{http://www.w3.org/XML/1998/namespace}lang" : 'en', "lang": 'en' },
+                    E.head( E.meta( { 'http-equiv' : 'Content-Type', 'content' : 'http://www.w3.org/1999/xhtml; charset=utf-8' } ),
+                        E.title( u'{g} on {t}: [{p}] {h}'.format( g=paper, t=today, p=page_number, h=headline ) ),
+                        E.meta( { 'name': 'author', 'content' : byline if byline else ''} ),
+                        E.meta( { 'name': 'description', 'content' : standfirst if standfirst else ''} ) ),
+                    html_body )
 
             with open(page_filename,"w") as page_fp:
                 page_fp.write( etree.tostring(html,pretty_print=True) )
 
             filename_to_headline[page_filename] = headline
             filename_to_paper_part[page_filename] = paper_part
+            filename_to_description[page_filename] = standfirst
+            filename_to_author[page_filename] = byline
 
             page_number += 1
             files.append(page_filename)
@@ -363,10 +369,14 @@ filename_to_headline[contents_filename] = "Table of Contents"
 # ========================================================================
 # Now generate the NCX table of contents:
 
+mbp_namespace = "http://mobipocket.com/ns/mbp"
+mbp = "{{{0}}}".format(mbp_namespace)
+
 ncx_namespace = "http://www.daisy.org/z3986/2005/ncx/"
+ncx_nsmap = { None: ncx_namespace, "mbp": mbp_namespace }
 
 ncx = etree.Element("ncx",
-                    nsmap={None : ncx_namespace},
+                    nsmap=ncx_nsmap,
                     attrib={"version" : "2005-1",
                             "{http://www.w3.org/XML/1998/namespace}lang" : "en-GB"})
 
@@ -394,7 +404,7 @@ etree.SubElement(ncx,"docAuthor").append(author_text_element)
 
 nav_map = etree.SubElement(ncx,"navMap")
 
-nav_point_periodical = etree.SubElement(nav_map, "navPoint", attrib={"class": "periodical"})
+nav_point_periodical = etree.SubElement(nav_map, "navPoint", attrib={"class": "periodical", "id": 'periodical', "playOrder": '0'})
 content = etree.Element("content",attrib={"src" : contents_filename})
 title_text_element = etree.Element("text")
 title_text_element.text = filename_to_headline[contents_filename]
@@ -410,7 +420,7 @@ for f in nav_contents_files:
     if current_part != part_for_this_file:
         nav_point_section = etree.SubElement(nav_point_periodical,"navPoint",
                                      attrib={"class" : "section",
-                                             "id" : part_for_this_file,
+                                             "id" : re.sub(' ','-',part_for_this_file),
                                              "playOrder" : str(i) })
         content = etree.Element("content",attrib={"src" : f})
         title_text_element = etree.Element("text")
@@ -422,16 +432,25 @@ for f in nav_contents_files:
 
     current_part = part_for_this_file
     item_id = re.sub('\..*$','',f)
-    nav_point = etree.SubElement(nav_point_section,"navPoint",
+    nav_point_article = etree.SubElement(nav_point_section,"navPoint",
                                  attrib={"class" : "article",
-                                         "id" : item_id,
+                                         "id" : 'item-'+item_id,
                                          "playOrder" : str(i) })
     content = etree.Element("content",attrib={"src" : f})
     title_text_element = etree.Element("text")
     title_text_element.text = filename_to_headline[f]
-    nav_label = etree.SubElement(nav_point,"navLabel")
+    nav_label = etree.SubElement(nav_point_article,"navLabel")
     nav_label.append(title_text_element)
-    nav_point.append(content)
+    nav_point_article.append(content)
+
+    if filename_to_description[f]:
+        meta = etree.SubElement(nav_point_article, mbp+"meta", attrib={"name" : 'description'})
+        meta.text = filename_to_description[f]
+
+    if filename_to_author[f]:
+        meta = etree.SubElement(nav_point_article, mbp+"meta", attrib={"name" : 'author'})
+        meta.text = filename_to_author[f]
+
     i += 1
 
 with open(nav_contents_filename,"w") as fp:
@@ -455,7 +474,6 @@ mobi_filename = book_basename+".mobi"
 
 # ========================================================================
 # Now generate the structure of the OPF file using lxml.etree:
-
 opf_namespace = "http://www.idpf.org/2007/opf"
 dc_namespace = "http://purl.org/dc/elements/1.1/"
 dc_metadata_nsmap = { "dc" : dc_namespace }
