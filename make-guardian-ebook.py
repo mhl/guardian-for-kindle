@@ -25,10 +25,10 @@ from urllib2 import urlopen, HTTPError
 from lxml import etree
 import time
 from StringIO import StringIO
-import gd
 import errno
 from lxml.builder import E
 from lxml.html import fragments_fromstring
+from PIL import Image, ImageDraw, ImageFont
 
 # This script will create an opf version of The Guardian (or The
 # Observer on Sunday) suitable for turning into a .mobi file for
@@ -36,7 +36,7 @@ from lxml.html import fragments_fromstring
 
 # The script has several dependencies:
 #
-#  sudo apt-get install python2.6-minimal python-gd python-lxml imagemagick ttf-mscorefonts-installer
+#  sudo apt-get install python2.6-minimal python-imaging python-lxml imagemagick
 #
 # You need to put your API key in ~/.guardian-open-platform-key
 #
@@ -105,44 +105,39 @@ if not font_filename:
     print "Failed to find a font matching Helvetica"
     sys.exit(1)
 
-new_cover_image = gd.image((w,h))
-white = new_cover_image.colorAllocate((255,255,255))
-black = new_cover_image.colorAllocate((0,0,0))
+# Use the Python Imaging Library (PIL) to draw a simple cover image:
 
-new_cover_image.fill((0,0),white)
+im = Image.new("L",(w,h),"white")
 
 logo_filename = os.path.join(
     "..",
     ("observer" if sunday else "guardian")+"-logo-500.png")
 
-logo_image = gd.image(logo_filename)
-logo_size = logo_image.size()
+im_logo = Image.open(logo_filename)
+logo_size = im_logo.size
 
-logo_image.copyTo( new_cover_image, ((600-logo_size[0])/2,top_offset) )
+im.paste(im_logo,((w-logo_size[0])/2,top_offset))
+
+subtitle = [ today_long,
+             '',
+             'Unoffical Kindle version based on the Guardian Open Platform',
+             'Email: Mark Longair <mark-guardiankindle@longair.net>' ]
+
+font = ImageFont.truetype(font_filename,18)
+draw = ImageDraw.Draw(im)
+
+sizes = [draw.textsize(line,font=font) for line in subtitle]
+m_w = max(s[0] for s in sizes)
+m_h = max(s[1] for s in sizes)
 
 y = top_offset + logo_size[1] + top_offset
+x = (w - m_w) / 2
 
-subtitle = today_long + "\n\nUnoffical Kindle version based on the Guardian Open Platform"
-subtitle += "\nEmail: Mark Longair <mark-guardiankindle@longair.net>"
+for line in subtitle:
+    draw.text((x,y),line,font=font,fill="black")
+    y += m_h
 
-try:
-    new_cover_image.string_ttf(
-    font_filename,
-    12,
-    0,
-    (28,y),
-    subtitle,
-    black)
-except ValueError, e:
-    print "Error: " + str(e) + ' ' + font_filename
-    sys.exit(1)
-
-with open(cover_image_filename_png,"w") as fp:
-    new_cover_image.writePng(fp)
-
-check_call(["convert",cover_image_filename_png,cover_image_filename])
-
-# ========================================================================
+im.save(cover_image_filename)
 
 def make_item_url(item_id):
     return 'http://content.guardianapis.com/{i}?format=xml&show-fields=all&show-editors-picks=true&show-most-viewed=true&api-key={k}'.format( i=item_id, k=api_key)
