@@ -1,6 +1,7 @@
 #!/usr/bin/python2.6
 
-# Copyright 2010 Mark Longair
+# Copyright 2010, 2011 Mark Longair
+# Copyright 2011 Dominic Evans
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License as
