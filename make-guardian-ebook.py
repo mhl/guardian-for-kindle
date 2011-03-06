@@ -77,7 +77,7 @@ sunday = (date.today().isoweekday() == 7)
 paper = "The Observer" if sunday else "The Guardian"
 book_id = "Guardian_"+today
 book_title = paper + " on "+today_long
-book_title_short = paper + " on " + today
+book_title_short = paper + " (Unofficial)"
 book_basename = "guardian-"+today
 
 # ========================================================================
