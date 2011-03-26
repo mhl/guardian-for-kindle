@@ -283,12 +283,14 @@ with open(today_filename) as fp:
                 image_elements = body_element_tree.findall('//img')
                 for i, image_element in enumerate(image_elements):
                     ad_url = image_element.attrib['src']
-                    ad_filename = '{0:03d}-ad-{1:02d}.gif'.format(page_number,i)
+                    ad_image_data = urlopen(ad_url).read()
+                    ad_image_hash = sha1(ad_image_data).hexdigest()
+                    ad_filename = 'ad-{0}.gif'.format(ad_image_hash)
                     if not os.path.exists(ad_filename):
                         with open(ad_filename,'w') as fp:
-                            fp.write(urlopen(ad_url).read())
+                            fp.write(ad_image_data)
+                        files.append(ad_filename)
                     image_element.attrib['src'] = ad_filename
-                    files.append(ad_filename)
                 for e in body_element_tree.getroot()[0]:
                     html_body.append(e)
             if short_url:
