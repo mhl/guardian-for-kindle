@@ -23,6 +23,7 @@ from datetime import date
 from subprocess import Popen, check_call, call, PIPE
 from hashlib import sha1
 from urllib2 import urlopen, HTTPError
+import lxml
 from lxml import etree
 import time
 from StringIO import StringIO
@@ -187,6 +188,12 @@ filename_to_paper_part = {}
 
 files = []
 
+def strip_html(s):
+    if s:
+        return unicode(lxml.html.fromstring(s).text_content())
+    else:
+        return ""
+
 with open(today_filename) as fp:
     element_tree = etree.parse(today_filename,html_parser)
     page_number = 1
@@ -307,10 +314,10 @@ with open(today_filename) as fp:
             with open(page_filename,"w") as page_fp:
                 page_fp.write( etree.tostring(html,pretty_print=True) )
 
-            filename_to_headline[page_filename] = headline
+            filename_to_headline[page_filename] = strip_html(headline)
             filename_to_paper_part[page_filename] = paper_part
-            filename_to_description[page_filename] = standfirst
-            filename_to_author[page_filename] = byline
+            filename_to_description[page_filename] = strip_html(standfirst)
+            filename_to_author[page_filename] = strip_html(byline)
 
             page_number += 1
             files.append(page_filename)
