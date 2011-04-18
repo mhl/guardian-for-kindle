@@ -272,7 +272,7 @@ with open(today_filename) as fp:
             html_body = E.body(E.h3(headline))
             if byline:
                 html_body.append( E.h4('By '+byline) )
-            html_body.append( E.p('[{p}: {s}]'.format(p=paper_part,s=section_name)) )
+            html_body.append( E.p(u'[{p}: {s}]'.format(p=paper_part,s=section_name)) )
             if standfirst:
                 standfirst_fragments = fragments_fromstring(standfirst)
                 standfirst_element = E.p( E.em( *standfirst_fragments ) )
