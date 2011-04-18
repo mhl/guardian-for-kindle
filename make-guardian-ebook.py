@@ -216,6 +216,9 @@ with open(today_filename) as fp:
             link = li.find('a')
             href = link.get('href')
             m = re.search('http://www\.guardian\.co\.uk/(.*)$',href)
+            if not m:
+                print u"  Warning: failed to parse the link: '{0}'".format(href)
+                continue
             item_id = m.group(1)
             print "  "+item_id
             item_url = make_item_url(item_id)
