@@ -19,6 +19,7 @@
 import sys
 import os
 import re
+from shutil import copyfile
 from datetime import date
 from subprocess import Popen, check_call, call, PIPE
 from hashlib import sha1
@@ -88,6 +89,7 @@ book_basename = "guardian-"+today
 cover_image_basename = "cover-image"
 cover_image_filename_png = cover_image_basename + ".png"
 cover_image_filename = cover_image_basename + ".gif"
+masthead_filename = "masthead.gif"
 
 w = 600
 h = 800
@@ -140,6 +142,10 @@ for line in subtitle:
     y += m_h
 
 im.save(cover_image_filename)
+
+# Convert the logo to GIF to use as the masthead:
+im = Image.open(logo_filename)
+im.save(masthead_filename)
 
 def make_item_url(item_id):
     return 'http://content.guardianapis.com/{i}?format=xml&show-fields=all&show-editors-picks=true&show-most-viewed=true&api-key={k}'.format( i=item_id, k=api_key)
@@ -418,6 +424,8 @@ etree.SubElement(ncx,"docAuthor").append(author_text_element)
 nav_map = etree.SubElement(ncx,"navMap")
 
 nav_point_periodical = etree.SubElement(nav_map, "navPoint", attrib={"class": "periodical", "id": 'periodical', "playOrder": '0'})
+masthead = etree.Element(mbp+"meta-img",attrib={"name": "mastheadImage", "src": masthead_filename})
+nav_point_periodical.append(masthead)
 content = etree.Element("content",attrib={"src" : contents_filename})
 title_text_element = etree.Element("text")
 title_text_element.text = filename_to_headline[contents_filename]
@@ -481,6 +489,7 @@ with open(nav_contents_filename,"w") as fp:
 files.append(contents_filename)
 files.append(nav_contents_filename)
 files.append(cover_image_filename)
+files.append(masthead_filename)
 
 opf_filename = book_basename+".opf"
 mobi_filename = book_basename+".mobi"
