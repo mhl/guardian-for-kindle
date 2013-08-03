@@ -221,7 +221,7 @@ with open(today_filename) as fp:
 
             link = li.find('a')
             href = link.get('href')
-            m = re.search('http://www\.guardian\.co\.uk/(.*)$',href)
+            m = re.search('http://www\.theguardian\.com/(.*)$',href)
             if not m:
                 print u"  Warning: failed to parse the link: '{0}'".format(href)
                 continue
