@@ -339,7 +339,7 @@ def extension_to_media_type(extension):
         return 'image/gif'
     elif extension == 'html':
         return 'application/xhtml+xml'
-    elif extension == 'jpg':
+    elif extension == 'jpg' or extension == 'jpeg':
         return 'image/jpeg'
     elif extension == 'ncx':
         return 'application/x-dtbncx+xml'
