@@ -50,7 +50,7 @@ from PIL import Image, ImageDraw, ImageFont
 #
 # ========================================================================
 
-sleep_seconds_after_api_call = 1
+sleep_seconds_after_api_call = 2
 
 api_key = None
 
