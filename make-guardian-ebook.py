@@ -148,7 +148,7 @@ im = Image.open(logo_filename)
 im.save(masthead_filename)
 
 def make_item_url(item_id):
-    return 'http://content.guardianapis.com/{i}?format=xml&show-fields=all&show-editors-picks=true&show-most-viewed=true&api-key={k}'.format( i=item_id, k=api_key)
+    return 'http://beta.content.guardianapis.com/{i}?format=xml&show-fields=all&show-editors-picks=true&show-most-viewed=true&api-key={k}'.format( i=item_id, k=api_key)
 
 def url_to_element_tree(url):
     h = sha1(url.encode('UTF-8')).hexdigest()
