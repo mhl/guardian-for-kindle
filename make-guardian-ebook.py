@@ -291,7 +291,7 @@ with open(today_filename) as fp:
                 thumbnail_filename = "{0:03d}-thumb.{1:}".format(page_number,extension)
                 if not os.path.exists(thumbnail_filename):
                     with open(thumbnail_filename,"w") as fp:
-                        fp.write(urlopen(thumbnail).read())
+                        fp.write(urlopen(thumbnail.encode('utf-8')).read())
                 files.append(thumbnail_filename)
                 html_body.append( E.p( E.img( { 'src': thumbnail_filename } ) ) )
             if body:
