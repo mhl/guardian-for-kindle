@@ -1,4 +1,4 @@
-#!/usr/bin/python2.6
+#!/usr/bin/env python
 
 # Copyright 2010, 2011 Mark Longair
 # Copyright 2011 Dominic Evans
