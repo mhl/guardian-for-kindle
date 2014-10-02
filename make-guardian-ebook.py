@@ -16,6 +16,7 @@
 #   You should have received a copy of the GNU Affero General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
 import sys
 import os
 import re
@@ -147,8 +148,18 @@ im.save(cover_image_filename)
 im = Image.open(logo_filename)
 im.save(masthead_filename)
 
+class ArticleAccessDenied(Exception):
+    pass
+
+class ArticleMissing(Exception):
+    pass
+
 def make_item_url(item_id):
     return 'http://content.guardianapis.com/{i}?format=xml&show-fields=all&show-editors-picks=true&show-most-viewed=true&api-key={k}'.format( i=item_id, k=api_key)
+
+def get_error_message_from_content(http_error):
+    error_data = json.load(http_error.fp)
+    return error_data.get('response', {}).get('message', '')
 
 def url_to_element_tree(url):
     h = sha1(url.encode('UTF-8')).hexdigest()
@@ -158,11 +169,16 @@ def url_to_element_tree(url):
             text = urlopen(url).read()
         except HTTPError, e:
             if e.code == 403:
-                raise Exception, "The API return 403: is your API key correct?"
+                error_message = get_error_message_from_content(e)
+                if 'not permitted to access this content' in error_message:
+                    raise ArticleAccessDenied(error_message)
+                else:
+                    message = "403 returned from the API: {0}"
+                    raise Exception, message.format(error_message)
             # Otherwise it's probably a 404, an article that's now been removed:
             elif e.code == 404:
                 time.sleep(sleep_seconds_after_api_call)
-                return None
+                raise ArticleMissing(get_error_message_from_content(e))
             else:
                 raise Exception, "An unexpected HTTPError was returned: "+str(e)
         # Sleep to avoid making API requests faster than is allowed:
@@ -228,8 +244,8 @@ with open(today_filename) as fp:
             item_id = m.group(1)
             print "  "+item_id
             item_url = make_item_url(item_id)
-            element_tree = url_to_element_tree(item_url)
-            if element_tree:
+            try:
+                element_tree = url_to_element_tree(item_url)
 
                 response_element = element_tree.getroot()
                 if response_element.tag != 'response':
@@ -266,15 +282,11 @@ with open(today_filename) as fp:
                     print "    Warning: no redistribution rights available for that article"
                     body = "<p><b>Redistribution rights for this article were not available.</b></p>"
 
-            else:
-                # If url_to_element_tree returns None that means it's
-                # one of the inexplicable cases where the API returns
-                # a 404, but the article is on the website.  Could
-                # just scrape the article here, but for the moment
-                # just indicate what's happened:
-                print "    Warning: a 404 was returned for that item"
+            except (ArticleMissing, ArticleAccessDenied) as e:
+                print "    Warning: couldn't fetch that article"
                 headline = link.text
-                body = "<p><b>The Guardian Open Platform returned a 404 error for that article; i.e. it could not be found.</b></p>"
+                body = "<p><b>The Guardian Open Platform returned an error for that article: {0}</b></p>".format(e)
+                body += '<p>You can still try <a href="{0}">the original article link</a></p>'.format(href)
 
             page_filename = "{0:03d}.html".format(page_number)
 
