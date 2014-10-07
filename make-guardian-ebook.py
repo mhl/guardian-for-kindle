@@ -158,8 +158,12 @@ def make_item_url(item_id):
     return 'http://content.guardianapis.com/{i}?format=xml&show-fields=all&show-editors-picks=true&show-most-viewed=true&api-key={k}'.format( i=item_id, k=api_key)
 
 def get_error_message_from_content(http_error):
-    error_data = json.load(http_error.fp)
-    return error_data.get('response', {}).get('message', '')
+    try:
+        error_data = json.load(http_error.fp)
+        return error_data.get('response', {}).get('message', '')
+    except ValueError:
+        # In which case it's probably just not JSON in the response:
+        return http_error.fp.read()
 
 def url_to_element_tree(url):
     h = sha1(url.encode('UTF-8')).hexdigest()
