@@ -196,9 +196,9 @@ def url_to_element_tree(url):
 # Iterate over every link found in the "All Guardian Stories" page for
 # today, and generate a version of each story in very simple HTML:
 
-today_page_url = "http://www.guardian.co.uk/theguardian/all"
+today_page_url = "http://www.theguardian.com/theguardian"
 if sunday:
-    today_page_url = "http://www.guardian.co.uk/theobserver/all"
+    today_page_url = "http://www.theguardian.com/theobserver"
 
 today_page = urlopen(today_page_url).read()
 today_filename = 'today.html'
@@ -211,7 +211,7 @@ html_parser = etree.HTMLParser()
 filename_to_headline = {}
 filename_to_description = {}
 filename_to_author = {}
-filename_to_paper_part = {}
+filename_to_section = {}
 
 files = []
 
@@ -221,15 +221,30 @@ def strip_html(s):
     else:
         return ""
 
+def element_to_string(element):
+    s = element.text or ""
+    for sub_element in element:
+        s += element_to_string(sub_element)
+    s += element.tail
+    return s
+
+def get_sections_and_links(element_tree):
+    result = {}
+    for section_div in element_tree.findall('//div[@class="fc-container__inner"]'):
+        section_title_div = section_div.find('.//div[@class="fc-container__header__title"]')
+        section = element_to_string(section_title_div).strip()
+        link_xpath = './/a[@class="u-faux-block-link__overlay js-headline-text"]'
+        result[section] = [
+            (a.attrib['href'], a.text)
+            for a in section_div.findall(link_xpath)
+        ]
+    return result
+
 with open(today_filename) as fp:
     element_tree = etree.parse(today_filename,html_parser)
     page_number = 1
-    for li in element_tree.find('//ul[@class="timeline"]'):
-        paper_part = li.find('h2').find('a').text
-        print "["+paper_part+"]"
-
-        for li in li.find('ul'):
-
+    for section, links in get_sections_and_links(element_tree).items():
+        for link_url, link_text in links:
             headline = '[No headline found]'
             standfirst = None
             trail_text = None
@@ -240,11 +255,9 @@ with open(today_filename) as fp:
             publication = None
             section_name = None
 
-            link = li.find('a')
-            href = link.get('href')
-            m = re.search('http://www\.theguardian\.com/(.*)$',href)
+            m = re.search('http://www\.theguardian\.com/(.*)$',link_url)
             if not m:
-                print u"  Warning: failed to parse the link: '{0}'".format(href)
+                print u"  Warning: failed to parse the link: '{0}'".format(link_url)
                 continue
             item_id = m.group(1)
             print "  "+item_id
@@ -289,16 +302,16 @@ with open(today_filename) as fp:
 
             except (ArticleMissing, ArticleAccessDenied) as e:
                 print "    Warning: couldn't fetch that article"
-                headline = link.text
+                headline = link_text
                 body = "<p><b>The Guardian Open Platform returned an error for that article: {0}</b></p>".format(e)
-                body += '<p>You can still try <a href="{0}">the original article link</a></p>'.format(href)
+                body += '<p>You can still try <a href="{0}">the original article link</a></p>'.format(link_url)
 
             page_filename = "{0:03d}.html".format(page_number)
 
             html_body = E.body(E.h3(headline))
             if byline:
                 html_body.append( E.h4('By '+byline) )
-            html_body.append( E.p(u'[{p}: {s}]'.format(p=paper_part,s=section_name)) )
+            html_body.append( E.p(u'[{s}]'.format(s=section)) )
             if standfirst:
                 standfirst_fragments = fragments_fromstring(standfirst)
                 standfirst_element = E.p( E.em( *standfirst_fragments ) )
@@ -341,7 +354,7 @@ with open(today_filename) as fp:
                 page_fp.write( etree.tostring(html,pretty_print=True) )
 
             filename_to_headline[page_filename] = strip_html(headline)
-            filename_to_paper_part[page_filename] = paper_part
+            filename_to_section[page_filename] = section
             filename_to_description[page_filename] = strip_html(standfirst)
             filename_to_author[page_filename] = strip_html(byline)
 
@@ -378,17 +391,17 @@ etree.SubElement(spine,"itemref",
 
 body_element = E.body(E.h1("Contents"))
 
-current_part = None
+current_section = None
 current_list = None
 
 for f in files:
     if re.search('\.html$',f):
-        part_for_this_file = filename_to_paper_part[f]
-        if current_part != part_for_this_file:
-            body_element.append( E.h4( part_for_this_file ) )
+        section_for_this_file = filename_to_section[f]
+        if current_section != section_for_this_file:
+            body_element.append( E.h4( section_for_this_file ) )
             current_list = E.ul( )
             body_element.append( current_list )
-        current_part = part_for_this_file
+        current_section = section_for_this_file
         current_list.append( E.li( E.a( { 'href': f }, filename_to_headline[f] ) ) )
 
         etree.SubElement(spine,"itemref",
@@ -452,25 +465,25 @@ nav_label = etree.SubElement(nav_point_periodical, "navLabel")
 nav_label.append(title_text_element)
 nav_point_periodical.append(content)
 
-nav_contents_files = [ x for x in files if re.search('\.html$',x) ]
+nav_contents_files = [ fn for fn in files if re.search('\.html$',fn) ]
 i = 1
 nav_point_section = nav_point_periodical
 for f in nav_contents_files:
-    part_for_this_file = filename_to_paper_part[f]
-    if current_part != part_for_this_file:
+    section_for_this_file = filename_to_section[f]
+    if current_section != section_for_this_file:
         nav_point_section = etree.SubElement(nav_point_periodical,"navPoint",
                                      attrib={"class" : "section",
-                                             "id" : re.sub(' ','-',part_for_this_file),
+                                             "id" : re.sub(' ','-',section_for_this_file),
                                              "playOrder" : str(i) })
         content = etree.Element("content",attrib={"src" : f})
         title_text_element = etree.Element("text")
-        title_text_element.text = part_for_this_file
+        title_text_element.text = section_for_this_file
         nav_label = etree.SubElement(nav_point_section ,"navLabel")
         nav_label.append(title_text_element)
         nav_point_section.append(content)
         i += 1
 
-    current_part = part_for_this_file
+    current_section = section_for_this_file
     item_id = re.sub('\..*$','',f)
     nav_point_article = etree.SubElement(nav_point_section,"navPoint",
                                  attrib={"class" : "article",
