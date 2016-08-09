@@ -226,21 +226,27 @@ def element_to_string(element):
     return s
 
 def get_sections_and_links(element_tree):
-    result = {}
+    result = []
     for section_div in element_tree.findall('//div[@class="fc-container__inner"]'):
         section_title_div = section_div.find('.//div[@class="fc-container__header__title"]')
         section = element_to_string(section_title_div).strip()
         link_xpath = './/a[@class="u-faux-block-link__overlay js-headline-text"]'
-        result[section] = [
-            (a.attrib['href'], a.text)
-            for a in section_div.findall(link_xpath)
-        ]
+        result.append(
+            (
+                section,
+                [
+                    (a.attrib['href'], a.text)
+                    for a in section_div.findall(link_xpath)
+                ]
+            )
+        )
     return result
 
 with open(today_filename) as fp:
     element_tree = etree.parse(today_filename,html_parser)
     page_number = 1
-    for section, links in get_sections_and_links(element_tree).items():
+    for section, links in get_sections_and_links(element_tree):
+        print section
         for link_url, link_text in links:
             headline = '[No headline found]'
             standfirst = None
