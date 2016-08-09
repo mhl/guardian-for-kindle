@@ -172,14 +172,11 @@ def url_to_element_tree(url):
         try:
             text = urlopen(url).read()
         except HTTPError, e:
+            print "e is:", e
             if e.code == 403:
                 time.sleep(sleep_seconds_after_api_call)
                 error_message = get_error_message_from_content(e)
-                if 'not permitted to access this content' in error_message:
-                    raise ArticleAccessDenied(error_message)
-                else:
-                    message = "403 returned from the API: {0}"
-                    raise Exception, message.format(error_message)
+                raise ArticleAccessDenied(error_message)
             # Otherwise it's probably a 404, an article that's now been removed:
             elif e.code == 404:
                 time.sleep(sleep_seconds_after_api_call)
