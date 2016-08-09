@@ -255,7 +255,7 @@ with open(today_filename) as fp:
             publication = None
             section_name = None
 
-            m = re.search('http://www\.theguardian\.com/(.*)$',link_url)
+            m = re.search('https?://www\.theguardian\.com/(.*)$',link_url)
             if not m:
                 print u"  Warning: failed to parse the link: '{0}'".format(link_url)
                 continue
