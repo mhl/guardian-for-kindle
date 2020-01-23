@@ -57,7 +57,7 @@ api_key = None
 
 with open(os.path.join(os.environ['HOME'],
                        '.guardian-open-platform-key')) as fp:
-    api_key = fp.read().strip()
+    api_key = fp.readlines()[0].strip()
 
 def ordinal_suffix(n):
     if n == 1:
