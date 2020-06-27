@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2010, 2011 Mark Longair
 # Copyright 2011 Dominic Evans
@@ -20,15 +20,14 @@ import json
 import sys
 import os
 import re
-from shutil import copyfile
 from datetime import date
 from subprocess import Popen, check_call, call, PIPE
 from hashlib import sha1
-from urllib2 import urlopen, HTTPError
+from urllib.request import urlopen, HTTPError
 import lxml
 from lxml import etree
 import time
-from StringIO import StringIO
+from io import StringIO
 import errno
 from lxml.builder import E
 from lxml.html import fragments_fromstring
@@ -38,9 +37,8 @@ from PIL import Image, ImageDraw, ImageFont
 # Observer on Sunday) suitable for turning into a .mobi file for
 # copying to your Kindle.
 
-# The script has several dependencies:
-#
-#  sudo apt-get install python2.6-minimal python-imaging python-lxml imagemagick
+# The script has several dependencies specified in requirements.txt - you
+# can install them with: pip install -r requirements.txt
 #
 # You need to put your API key in ~/.guardian-open-platform-key
 #
@@ -107,7 +105,7 @@ def backticks(command):
 
 font_filename = backticks(['fc-match','-f','%{file}','Helvetica'])
 if not font_filename:
-    print "Failed to find a font matching Helvetica"
+    print("Failed to find a font matching Helvetica")
     sys.exit(1)
 
 # Use the Python Imaging Library (PIL) to draw a simple cover image:
@@ -121,7 +119,7 @@ logo_filename = os.path.join(
 im_logo = Image.open(logo_filename)
 logo_size = im_logo.size
 
-im.paste(im_logo,((w-logo_size[0])/2,top_offset))
+im.paste(im_logo,(int((w-logo_size[0])/2),top_offset))
 
 subtitle = [ today_long,
              '',
@@ -170,9 +168,9 @@ def url_to_element_tree(url):
     filename = h+".xml"
     if not os.path.exists(filename):
         try:
-            text = urlopen(url).read()
-        except HTTPError, e:
-            print "e is:", e
+            text = urlopen(url).read().decode("utf-8")
+        except HTTPError as e:
+            print("e is:", e)
             if e.code == 403:
                 time.sleep(sleep_seconds_after_api_call)
                 error_message = get_error_message_from_content(e)
@@ -182,7 +180,7 @@ def url_to_element_tree(url):
                 time.sleep(sleep_seconds_after_api_call)
                 raise ArticleMissing(get_error_message_from_content(e))
             else:
-                raise Exception, "An unexpected HTTPError was returned: "+str(e)
+                raise Exception("An unexpected HTTPError was returned: "+str(e))
         # Sleep to avoid making API requests faster than is allowed:
         time.sleep(sleep_seconds_after_api_call)
         with open(filename,"w") as fp:
@@ -197,11 +195,12 @@ today_page_url = "http://www.theguardian.com/theguardian"
 if sunday:
     today_page_url = "http://www.theguardian.com/theobserver"
 
-today_page = urlopen(today_page_url).read()
 today_filename = 'today.html'
 
-with open(today_filename,"w") as fp:
-    fp.write(today_page)
+if not os.path.exists(today_filename):
+    today_page = urlopen(today_page_url).read().decode("utf-8")
+    with open(today_filename,"w") as fp:
+        fp.write(today_page)
 
 html_parser = etree.HTMLParser()
 
@@ -214,7 +213,7 @@ files = []
 
 def strip_html(s):
     if s:
-        return unicode(lxml.html.fromstring(s).text_content())
+        return str(lxml.html.fromstring(s).text_content())
     else:
         return ""
 
@@ -246,7 +245,7 @@ with open(today_filename) as fp:
     element_tree = etree.parse(today_filename,html_parser)
     page_number = 1
     for section, links in get_sections_and_links(element_tree):
-        print section
+        print(section)
         for link_url, link_text in links:
             headline = '[No headline found]'
             standfirst = None
@@ -260,21 +259,21 @@ with open(today_filename) as fp:
 
             m = re.search('https?://www\.theguardian\.com/(.*)$',link_url)
             if not m:
-                print u"  Warning: failed to parse the link: '{0}'".format(link_url)
+                print(u"  Warning: failed to parse the link: '{0}'".format(link_url))
                 continue
             item_id = m.group(1)
-            print "  "+item_id
+            print("  "+item_id)
             item_url = make_item_url(item_id)
             try:
                 element_tree = url_to_element_tree(item_url)
 
                 response_element = element_tree.getroot()
                 if response_element.tag != 'response':
-                    print "The root tag unexpectedly wasn't \"response\"."
+                    print("The root tag unexpectedly wasn't \"response\".")
                     sys.exit(1)
                 status = response_element.attrib['status']
                 if status != "ok":
-                    print "    The response element's status was \"{0}\" (i.e. not \"ok\") Skipping...".format(status)
+                    print("    The response element's status was \"{0}\" (i.e. not \"ok\") Skipping...".format(status))
                     continue
 
                 content = element_tree.find('//content')
@@ -300,11 +299,11 @@ with open(today_filename) as fp:
                         publication = field.text
 
                 if body and re.search('Redistribution rights for this field are unavailable',body) and len(body) < 100:
-                    print "    Warning: no redistribution rights available for that article"
+                    print("    Warning: no redistribution rights available for that article")
                     body = "<p><b>Redistribution rights for this article were not available.</b></p>"
 
             except (ArticleMissing, ArticleAccessDenied) as e:
-                print "    Warning: couldn't fetch that article"
+                print("    Warning: couldn't fetch that article")
                 headline = link_text
                 body = "<p><b>The Guardian Open Platform returned an error for that article: {0}</b></p>".format(e)
                 body += '<p>You can still try <a href="{0}">the original article link</a></p>'.format(link_url)
@@ -323,8 +322,8 @@ with open(today_filename) as fp:
                 extension = re.sub('^.*\.','',thumbnail)
                 thumbnail_filename = "{0:03d}-thumb.{1:}".format(page_number,extension)
                 if not os.path.exists(thumbnail_filename):
-                    with open(thumbnail_filename,"w") as fp:
-                        fp.write(urlopen(thumbnail.encode('utf-8')).read())
+                    with open(thumbnail_filename,"wb") as fp:
+                        fp.write(urlopen(thumbnail).read())
                 files.append(thumbnail_filename)
                 html_body.append( E.p( E.img( { 'src': thumbnail_filename } ) ) )
             if body:
@@ -336,7 +335,7 @@ with open(today_filename) as fp:
                     ad_image_hash = sha1(ad_image_data).hexdigest()
                     ad_filename = 'ad-{0}.gif'.format(ad_image_hash)
                     if not os.path.exists(ad_filename):
-                        with open(ad_filename,'w') as fp:
+                        with open(ad_filename,'wb') as fp:
                             fp.write(ad_image_data)
                         files.append(ad_filename)
                     image_element.attrib['src'] = ad_filename
@@ -353,7 +352,7 @@ with open(today_filename) as fp:
                         E.meta( { 'name': 'description', 'content' : standfirst if standfirst else ''} ) ),
                     html_body )
 
-            with open(page_filename,"w") as page_fp:
+            with open(page_filename,"wb") as page_fp:
                 page_fp.write( etree.tostring(html,pretty_print=True) )
 
             filename_to_headline[page_filename] = strip_html(headline)
@@ -379,7 +378,7 @@ def extension_to_media_type(extension):
     elif extension == 'ncx':
         return 'application/x-dtbncx+xml'
     else:
-        raise Exception, "Unknown extension: "+extension
+        raise Exception("Unknown extension: "+extension)
 
 contents_filename = "contents.html"
 nav_contents_filename = "nav-contents.ncx"
@@ -410,7 +409,7 @@ for f in files:
         etree.SubElement(spine,"itemref",
                          attrib={"idref":re.sub('\..*$','',f)})
 
-with open(contents_filename,"w") as fp:
+with open(contents_filename,"wb") as fp:
     html = E.html( E.head(
             E.meta( { 'http-equiv' : 'Content-Type',
                       'content' : 'text/html; charset=utf-8' } ),
@@ -509,11 +508,11 @@ for f in nav_contents_files:
 
     i += 1
 
-with open(nav_contents_filename,"w") as fp:
-    fp.write("<?xml version='1.0' encoding='utf-8'?>\n")
+with open(nav_contents_filename,"wb") as fp:
+    fp.write(b"<?xml version='1.0' encoding='utf-8'?>\n")
     # I don't think there's an elegant way of setting the
     # doctype using lxml.etree, but I could be wrong...
-    fp.write('<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">'+"\n")
+    fp.write(b'<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">\n')
     fp.write(etree.tostring(ncx,
                             pretty_print=True,
                             encoding="utf-8",
@@ -583,7 +582,7 @@ etree.SubElement(guide,"reference",
                          "title":filename_to_headline['001.html'],
                          "href":'001.html'})
 
-with open(opf_filename,"w") as fp:
+with open(opf_filename,"wb") as fp:
     opf_element_tree = etree.ElementTree(package)
     opf_element_tree.write(fp,
                            pretty_print=True,
@@ -595,9 +594,9 @@ with open(opf_filename,"w") as fp:
 with open("/dev/null","w") as null:
     try:
         call(['kindlegen','-c2','-o',mobi_filename,opf_filename])
-    except OSError, e:
+    except OSError as e:
         if e.errno == errno.ENOENT:
-            print "Warning: kindlegen was not on your path; not generating .mobi version"
+            print("Warning: kindlegen was not on your path; not generating .mobi version")
         else:
             raise
 
