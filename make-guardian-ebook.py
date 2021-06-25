@@ -62,6 +62,8 @@ def ordinal_suffix(n):
         return "st"
     elif n == 2:
         return "nd"
+    elif n == 3:
+        return "rd"
     else:
         return "th"
 
